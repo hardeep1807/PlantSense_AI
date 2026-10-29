@@ -1,11 +1,12 @@
 package com.plantsense.ai.presentation.identification
 
+import com.plantsense.ai.core.theme.Dimens
+import com.plantsense.ai.core.theme.TextMetrics
+
 import android.content.Intent
-import android.graphics.BitmapFactory
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -28,12 +29,16 @@ import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.stringArrayResource
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.plantsense.ai.R
+import com.plantsense.ai.core.theme.spacing
 import com.plantsense.ai.domain.model.PlantIdentificationResult
 import com.plantsense.ai.presentation.common.PremiumLoadingScreen
 import kotlinx.coroutines.delay
@@ -50,13 +56,14 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun IdentificationScreen(
+fun IdentificationRoute(
     imagePath: String,
     historyId: Int,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: IdentificationViewModel = hiltViewModel()
 ) {
+    val spacing = MaterialTheme.spacing
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(key1 = imagePath, key2 = historyId) {
@@ -88,7 +95,7 @@ fun IdentificationScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.background)
-                            .padding(24.dp),
+                            .padding(spacing.xxl),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(
@@ -99,24 +106,24 @@ fun IdentificationScreen(
                                 imageVector = Icons.Rounded.Warning,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(64.dp)
+                                modifier = Modifier.size(Dimens.Dp64)
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(spacing.lg))
                             Text(
-                                text = state.message,
+                                text = state.message.asString(),
                                 style = MaterialTheme.typography.titleMedium,
                                 textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                             )
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(spacing.xxl))
                             
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                horizontalArrangement = Arrangement.spacedBy(spacing.md)
                             ) {
                                 OutlinedButton(
                                     onClick = onBack,
-                                    shape = RoundedCornerShape(16.dp),
-                                    modifier = Modifier.height(48.dp)
+                                    shape = RoundedCornerShape(spacing.lg),
+                                    modifier = Modifier.height(spacing.minTouchTarget)
                                 ) {
                                     Text(stringResource(R.string.back), fontWeight = FontWeight.Bold)
                                 }
@@ -124,11 +131,11 @@ fun IdentificationScreen(
                                 if (historyId == -1) {
                                     Button(
                                         onClick = { viewModel.identify(imagePath) },
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = RoundedCornerShape(spacing.lg),
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = MaterialTheme.colorScheme.primary
                                         ),
-                                        modifier = Modifier.height(48.dp)
+                                        modifier = Modifier.height(Dimens.Dp48)
                                     ) {
                                         Text(stringResource(R.string.retry_diagnostic), fontWeight = FontWeight.Bold)
                                     }
@@ -154,40 +161,44 @@ fun IdentificationContent(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showFullExplanation by remember { mutableStateOf(false) }
+    val plantName = result.plantName.ifBlank { stringResource(R.string.unknown_plant) }
+    val botanicalName = result.botanicalName.ifBlank { stringResource(R.string.unknown_value) }
+    val description = result.description.ifBlank { stringResource(R.string.no_description_available) }
+    val careLight = result.careLight.ifBlank { stringResource(R.string.unknown_sunlight_requirements) }
+    val careWater = result.careWater.ifBlank { stringResource(R.string.unknown_water_requirements) }
+    val careTemp = result.careTemp.ifBlank { stringResource(R.string.unknown_temperature_requirements) }
 
-    val bitmap = remember(imagePath) {
-        try {
-            BitmapFactory.decodeFile(imagePath)
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    // Dynamic, realistic data maps for facts and explanation based on common name
-    val interestingFacts = remember(result.plantName) {
-        val name = result.plantName.lowercase()
+    val factsResource = remember(plantName) {
         when {
-            name.contains("tomato") -> listOf(
-                "Botanically, a tomato is a fruit (a berry), though it is treated as a vegetable in culinary applications.",
-                "Tomatoes were once feared as poisonous in Europe because they belong to the nightshade family.",
-                "The world record for the largest tomato plant reached a length of 19.8 meters (65 feet)!"
-            )
-            name.contains("monstera") -> listOf(
-                "Monstera deliciosa is famous for its natural leaf holes, which are called fenestrations.",
-                "The fenestrations help the plant pass strong winds through without tearing the leaves in tropical rainforests.",
-                "In its native habitat, it produces a delicious fruit that tastes like a mix of pineapple, banana, and mango."
-            )
-            else -> listOf(
-                "This plant is highly valued for its visual foliage and adaptation to native outdoor and indoor environments.",
-                "Proper light exposure determines the vibrancy of its leaves and stem growth rate.",
-                "Regular care and monitoring prevent standard root rot or leaf spots."
-            )
+            plantName.contains("tomato", ignoreCase = true) -> R.array.tomato_facts
+            plantName.contains("monstera", ignoreCase = true) -> R.array.monstera_facts
+            else -> R.array.generic_plant_facts
         }
     }
+    val interestingFacts = stringArrayResource(factsResource)
 
-    val fullExplanation = remember(result.plantName, result.botanicalName) {
-        "Detailed botanical review for ${result.plantName} (${result.botanicalName}). PlantSense AI has run visual cellular neural grid checks on this specimen. The confidence rate is ${(result.confidence * 100).toInt()}%. Soil irrigation should remain stable at ${result.careWater.lowercase()} while preserving light density at ${result.careLight.lowercase()} and temperature around ${result.careTemp.lowercase()}."
-    }
+    val fullExplanation = stringResource(
+        R.string.full_botanical_explanation,
+        plantName,
+        botanicalName,
+        (result.confidence * 100).toInt(),
+        careWater.lowercase(),
+        careLight.lowercase(),
+        careTemp.lowercase()
+    )
+    val shareSubject = stringResource(R.string.share_report_subject, plantName)
+    val shareBody = stringResource(
+        R.string.share_report_body,
+        plantName,
+        botanicalName,
+        (result.confidence * 100).toInt(),
+        description,
+        careWater,
+        careLight,
+        careTemp
+    )
+    val shareChooserTitle = stringResource(R.string.share_report_chooser)
+    val savedMessage = stringResource(R.string.report_saved)
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -195,84 +206,81 @@ fun IdentificationContent(
         bottomBar = {
             // Sticky Bottom Actions Row
             Surface(
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                shape = RoundedCornerShape(topStart = Dimens.Dp28, topEnd = Dimens.Dp28),
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp,
-                shadowElevation = 8.dp,
+                tonalElevation = Dimens.Dp8,
+                shadowElevation = Dimens.Dp8,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
                         .navigationBarsPadding()
-                        .padding(16.dp)
+                        .padding(Dimens.Dp16)
                         .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.Dp10)
                 ) {
                     // Share Intent
                     OutlinedButton(
                         onClick = {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "PlantSense AI Report: ${result.plantName}")
-                                putExtra(
-                                    Intent.EXTRA_TEXT,
-                                    "Check out this PlantSense AI Report!\n\nPlant Name: ${result.plantName}\nScientific Name: ${result.botanicalName}\nMatch Confidence: ${(result.confidence * 100).toInt()}%\n\nDescription: ${result.description}\n\nWater: ${result.careWater}\nSunlight: ${result.careLight}\nTemp: ${result.careTemp}"
-                                )
+                                putExtra(Intent.EXTRA_SUBJECT, shareSubject)
+                                putExtra(Intent.EXTRA_TEXT, shareBody)
                             }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Plant Report"))
+                            context.startActivity(Intent.createChooser(shareIntent, shareChooserTitle))
                         },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(Dimens.Dp16),
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
+                            .height(Dimens.Dp48)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Share,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(Dimens.Dp16)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Share", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(Dimens.Dp6))
+                        Text(stringResource(R.string.share), fontWeight = FontWeight.Bold, fontSize = TextMetrics.Sp13)
                     }
                     
                     // Save Confirmation
                     OutlinedButton(
                         onClick = {
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Report saved to archives successfully!")
+                                snackbarHostState.showSnackbar(savedMessage)
                             }
                         },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(Dimens.Dp16),
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
+                            .height(Dimens.Dp48)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.BookmarkAdd,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(Dimens.Dp16)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Save", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(Dimens.Dp6))
+                        Text(stringResource(R.string.save), fontWeight = FontWeight.Bold, fontSize = TextMetrics.Sp13)
                     }
 
                     // Scan Again Button
                     Button(
                         onClick = onBack,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(Dimens.Dp16),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         modifier = Modifier
                             .weight(1.3f)
-                            .height(48.dp)
+                            .height(Dimens.Dp48)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.QrCodeScanner,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(Dimens.Dp16)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Scan Again", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.width(Dimens.Dp6))
+                        Text(stringResource(R.string.scan_again), fontWeight = FontWeight.Bold, color = Color.White, fontSize = TextMetrics.Sp13)
                     }
                 }
             }
@@ -288,16 +296,19 @@ fun IdentificationContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(Dimens.Dp300)
             ) {
-                bitmap?.let {
-                    Image(
-                        bitmap = it.asImageBitmap(),
-                        contentDescription = result.plantName,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(File(imagePath))
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = plantName,
+                    contentScale = ContentScale.Crop,
+                    placeholder = rememberVectorPainter(Icons.Rounded.Spa),
+                    error = rememberVectorPainter(Icons.Rounded.BrokenImage),
+                    modifier = Modifier.fillMaxSize()
+                )
                 
                 // Overlay vignette
                 Box(
@@ -312,28 +323,27 @@ fun IdentificationContent(
                 )
 
                 // Back Button
-                Box(
+                IconButton(
+                    onClick = onBack,
                     modifier = Modifier
                         .statusBarsPadding()
-                        .padding(start = 16.dp, top = 16.dp)
-                        .size(40.dp)
+                        .padding(start = Dimens.Dp16, top = Dimens.Dp16)
+                        .size(Dimens.Dp48)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.4f))
-                        .clickable { onBack() },
-                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = stringResource(R.string.back_cd),
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Dimens.Dp20)
                     )
                 }
             }
 
             Column(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(Dimens.Dp20)
                     .fillMaxWidth()
             ) {
                 // Header details: Name, Scientific Name, Circular Confidence Progress
@@ -346,118 +356,118 @@ fun IdentificationContent(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .clip(RoundedCornerShape(Dimens.Dp6))
                                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .padding(horizontal = Dimens.Dp6, vertical = Dimens.Dp2)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Rounded.CheckCircle,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(10.dp)
+                                        modifier = Modifier.size(Dimens.Dp10)
                                     )
-                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Spacer(modifier = Modifier.width(Dimens.Dp3))
                                     Text(
-                                        text = "VERIFIED SPECIES",
+                                        text = stringResource(R.string.verified_species).uppercase(),
                                         color = MaterialTheme.colorScheme.primary,
-                                        fontSize = 8.sp,
+                                        fontSize = TextMetrics.Sp8,
                                         fontWeight = FontWeight.Bold,
-                                        letterSpacing = 0.5.sp
+                                        letterSpacing = TextMetrics.TrackingHalf
                                     )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp6))
 
                         Text(
-                            text = result.plantName,
-                            fontSize = 28.sp,
+                            text = plantName,
+                            fontSize = TextMetrics.Sp28,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onBackground,
-                            lineHeight = 34.sp
+                            lineHeight = TextMetrics.Sp34
                         )
                         Text(
-                            text = result.botanicalName,
-                            fontSize = 16.sp,
+                            text = botanicalName,
+                            fontSize = TextMetrics.Sp16,
                             fontStyle = FontStyle.Italic,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                            modifier = Modifier.padding(top = 2.dp)
+                            modifier = Modifier.padding(top = Dimens.Dp2)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(Dimens.Dp16))
 
                     // Circular Confidence Gauge
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(60.dp)
+                        modifier = Modifier.size(Dimens.Dp60)
                     ) {
                         CircularProgressIndicator(
                             progress = { result.confidence.toFloat() },
                             color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 5.dp,
+                            strokeWidth = Dimens.Dp5,
                             trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                             modifier = Modifier.fillMaxSize()
                         )
                         Text(
-                            text = "${(result.confidence * 100).toInt()}%",
-                            fontSize = 13.sp,
+                            text = stringResource(R.string.percent_value, (result.confidence * 100).toInt()),
+                            fontSize = TextMetrics.Sp13,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp24))
 
                 // Card 1: About Card
                 AnimatedResultCard(index = 0) {
                     Card(
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(Dimens.Dp24),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
+                        Column(modifier = Modifier.padding(Dimens.Dp20)) {
                             Text(
-                                text = "About Species",
+                                text = stringResource(R.string.about_species),
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimens.Dp8))
                             Text(
-                                text = result.description,
+                                text = description,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                lineHeight = 20.sp
+                                lineHeight = TextMetrics.Sp20
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp14))
 
                 // Card 2: Disease Analysis Status Check
                 AnimatedResultCard(index = 1) {
                     Card(
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(Dimens.Dp24),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier.padding(20.dp),
+                            modifier = Modifier.padding(Dimens.Dp20),
                             verticalAlignment = Alignment.Top
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(Dimens.Dp38)
                                     .clip(CircleShape)
                                     .background(Color(0xFF2E7D32).copy(alpha = 0.1f)),
                                 contentAlignment = Alignment.Center
@@ -466,96 +476,96 @@ fun IdentificationContent(
                                     imageVector = Icons.Rounded.CheckCircle,
                                     contentDescription = null,
                                     tint = Color(0xFF2E7D32),
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(Dimens.Dp20)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(Dimens.Dp16))
                             Column {
                                 Text(
-                                    text = "Disease Diagnostics Check",
+                                    text = stringResource(R.string.disease_diagnostics_check),
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleMedium,
                                     color = Color(0xFF2E7D32)
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(Dimens.Dp4))
                                 Text(
-                                    text = "Healthy Leaf. No symptoms of active blight, spots, or cellular pathology detected by AI analysis.",
+                                    text = stringResource(R.string.healthy_leaf_diagnostic),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                    lineHeight = 18.sp
+                                    lineHeight = TextMetrics.Sp18
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp14))
 
                 // Card 3: Care Guide Card (Water, Light, Temp, Humidity, Fertilizer)
                 AnimatedResultCard(index = 2) {
                     Card(
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(Dimens.Dp24),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
+                        Column(modifier = Modifier.padding(Dimens.Dp20)) {
                             Text(
-                                text = "Care Guide",
+                                text = stringResource(R.string.care_guide),
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(Dimens.Dp16))
 
                             // Grid Row 1 (Water, Sunlight, Temperature)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.Dp8)
                             ) {
                                 CareParamItem(
                                     icon = Icons.Rounded.WaterDrop,
-                                    title = "Water",
-                                    value = getShortCareLabel(result.careWater, "Weekly"),
+                                    title = stringResource(R.string.water),
+                                    value = getShortCareLabel(careWater, R.string.weekly),
                                     tint = Color(0xFF2196F3),
                                     modifier = Modifier.weight(1f)
                                 )
                                 CareParamItem(
                                     icon = Icons.Rounded.LightMode,
-                                    title = "Sunlight",
-                                    value = getShortCareLabel(result.careLight, "Indirect"),
+                                    title = stringResource(R.string.sunlight),
+                                    value = getShortCareLabel(careLight, R.string.indirect_light),
                                     tint = Color(0xFFFFB300),
                                     modifier = Modifier.weight(1f)
                                 )
                                 CareParamItem(
                                     icon = Icons.Rounded.Thermostat,
-                                    title = "Temperature",
-                                    value = getShortCareLabel(result.careTemp, "Moderate"),
+                                    title = stringResource(R.string.temperature),
+                                    value = getShortCareLabel(careTemp, R.string.moderate),
                                     tint = Color(0xFFE57373),
                                     modifier = Modifier.weight(1f)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimens.Dp8))
 
                             // Grid Row 2 (Humidity, Fertilizer)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.Dp8)
                             ) {
                                 CareParamItem(
                                     icon = Icons.Rounded.Air,
-                                    title = "Humidity",
-                                    value = "Moderate",
+                                    title = stringResource(R.string.humidity),
+                                    value = stringResource(R.string.moderate),
                                     tint = Color(0xFF00ACC1),
                                     modifier = Modifier.weight(1f)
                                 )
                                 CareParamItem(
                                     icon = Icons.Rounded.Grass,
-                                    title = "Fertilizer",
-                                    value = "Monthly",
+                                    title = stringResource(R.string.fertilizer),
+                                    value = stringResource(R.string.monthly),
                                     tint = Color(0xFF7CB342),
                                     modifier = Modifier.weight(1f)
                                 )
@@ -564,30 +574,30 @@ fun IdentificationContent(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp14))
 
                 // Card 4: Interesting Facts
                 if (interestingFacts.isNotEmpty()) {
                     AnimatedResultCard(index = 3) {
                         Card(
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(Dimens.Dp24),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(20.dp)) {
+                            Column(modifier = Modifier.padding(Dimens.Dp20)) {
                                 Text(
-                                    text = "Interesting Facts",
+                                    text = stringResource(R.string.interesting_facts),
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(Dimens.Dp12))
                                 
                                 interestingFacts.forEachIndexed { i, fact ->
                                     Row(
-                                        modifier = Modifier.padding(vertical = 4.dp),
+                                        modifier = Modifier.padding(vertical = Dimens.Dp4),
                                         verticalAlignment = Alignment.Top
                                     ) {
                                         Icon(
@@ -595,31 +605,31 @@ fun IdentificationContent(
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier
-                                                .size(16.dp)
-                                                .padding(top = 2.dp)
+                                                .size(Dimens.Dp16)
+                                                .padding(top = Dimens.Dp2)
                                         )
-                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Spacer(modifier = Modifier.width(Dimens.Dp10))
                                         Text(
                                             text = fact,
-                                            fontSize = 13.sp,
+                                            fontSize = TextMetrics.Sp13,
                                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                            lineHeight = 18.sp
+                                            lineHeight = TextMetrics.Sp18
                                         )
                                     }
                                 }
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(Dimens.Dp14))
                 }
 
                 // Card 5: Expandable AI Explanation Accordion Card
                 AnimatedResultCard(index = 4) {
                     Card(
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(Dimens.Dp24),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2),
                         modifier = Modifier
                             .fillMaxWidth()
                             .animateContentSize(
@@ -632,7 +642,7 @@ fun IdentificationContent(
                         Column(
                             modifier = Modifier
                                 .clickable { showFullExplanation = !showFullExplanation }
-                                .padding(20.dp)
+                                .padding(Dimens.Dp20)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -640,32 +650,35 @@ fun IdentificationContent(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Full Botanical Explanation",
+                                    text = stringResource(R.string.full_botanical_explanation_title),
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Icon(
                                     imageVector = if (showFullExplanation) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                                    contentDescription = "Expand explanation",
+                                    contentDescription = stringResource(
+                                        if (showFullExplanation) R.string.collapse_explanation_cd
+                                        else R.string.expand_explanation_cd
+                                    ),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
 
                             if (showFullExplanation) {
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(Dimens.Dp12))
                                 Text(
                                     text = fullExplanation,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                    lineHeight = 20.sp
+                                    lineHeight = TextMetrics.Sp20
                                 )
                             }
                         }
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp48))
             }
         }
     }
@@ -706,19 +719,19 @@ private fun CareParamItem(
     modifier: Modifier = Modifier
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(Dimens.Dp16),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.05f)),
+        border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.05f)),
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(Dimens.Dp10),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(Dimens.Dp32)
                     .clip(CircleShape)
                     .background(tint.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
@@ -727,20 +740,20 @@ private fun CareParamItem(
                     imageVector = icon,
                     contentDescription = null,
                     tint = tint,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(Dimens.Dp16)
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp6))
             Text(
                 text = title,
-                fontSize = 10.sp,
+                fontSize = TextMetrics.Sp10,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp2))
             Text(
                 text = value,
-                fontSize = 11.sp,
+                fontSize = TextMetrics.Sp11,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
@@ -750,16 +763,18 @@ private fun CareParamItem(
     }
 }
 
-private fun getShortCareLabel(careText: String, default: String): String {
+@Composable
+private fun getShortCareLabel(careText: String, @StringRes defaultRes: Int): String {
     val lower = careText.lowercase()
     return when {
-        lower.contains("weekly") || lower.contains("once a week") -> "Weekly"
-        lower.contains("twice a week") -> "Twice/Wk"
-        lower.contains("direct") -> "Direct"
-        lower.contains("indirect") -> "Indirect"
-        lower.contains("shade") -> "Shade"
-        lower.contains("dry") -> "Dry Soil"
-        lower.contains("moist") -> "Moist Soil"
-        else -> if (careText.length > 10) careText.take(8) + ".." else careText
+        careText.isBlank() -> stringResource(defaultRes)
+        lower.contains("twice a week") -> stringResource(R.string.twice_weekly)
+        lower.contains("weekly") || lower.contains("once a week") -> stringResource(R.string.weekly)
+        lower.contains("indirect") -> stringResource(R.string.indirect_light)
+        lower.contains("direct") -> stringResource(R.string.direct_light)
+        lower.contains("shade") -> stringResource(R.string.shade)
+        lower.contains("dry") -> stringResource(R.string.dry_soil)
+        lower.contains("moist") -> stringResource(R.string.moist_soil)
+        else -> if (careText.length > 10) careText.take(8) + "…" else careText
     }
 }

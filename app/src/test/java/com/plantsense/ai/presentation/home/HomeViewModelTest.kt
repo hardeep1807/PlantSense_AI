@@ -5,6 +5,7 @@ import com.plantsense.ai.domain.model.ScanHistoryItem
 import com.plantsense.ai.domain.model.ScanType
 import com.plantsense.ai.domain.repository.ImageStorage
 import com.plantsense.ai.domain.usecase.GetScanHistoryUseCase
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.plantsense.ai.presentation.model.toUiModel
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -75,7 +77,45 @@ class HomeViewModelTest {
             testDispatcher.scheduler.runCurrent()
             val successState = awaitItem()
             assertTrue(successState is HomeUiState.Success)
-            assertEquals(sampleScans, (successState as HomeUiState.Success).scans)
+            assertEquals(sampleScans.map { it.toUiModel() }, (successState as HomeUiState.Success).scans)
+        }
+    }
+
+    @Test
+    fun onEvent_imagePicked_success_emitsNavigateToIdentify() = runTest {
+        coEvery { imageStorage.copyUriToStorage("content://plant") } returns "/data/plant.jpg"
+
+        viewModel.effects.test {
+            viewModel.onEvent(HomeEvent.ImagePicked("content://plant"))
+            testDispatcher.scheduler.runCurrent()
+            val effect = awaitItem()
+            assertTrue(effect is HomeEffect.NavigateToIdentify)
+            assertEquals("/data/plant.jpg", (effect as HomeEffect.NavigateToIdentify).imagePath)
+        }
+    }
+
+    @Test
+    fun onEvent_diseaseImagePicked_success_emitsNavigateToDisease() = runTest {
+        coEvery { imageStorage.copyUriToStorage("content://disease") } returns "/data/disease.jpg"
+
+        viewModel.effects.test {
+            viewModel.onEvent(HomeEvent.DiseaseImagePicked("content://disease"))
+            testDispatcher.scheduler.runCurrent()
+            val effect = awaitItem()
+            assertTrue(effect is HomeEffect.NavigateToDisease)
+            assertEquals("/data/disease.jpg", (effect as HomeEffect.NavigateToDisease).imagePath)
+        }
+    }
+
+    @Test
+    fun onEvent_imagePicked_failure_emitsShowError() = runTest {
+        coEvery { imageStorage.copyUriToStorage("content://invalid") } returns null
+
+        viewModel.effects.test {
+            viewModel.onEvent(HomeEvent.ImagePicked("content://invalid"))
+            testDispatcher.scheduler.runCurrent()
+            val effect = awaitItem()
+            assertTrue(effect is HomeEffect.ShowError)
         }
     }
 }

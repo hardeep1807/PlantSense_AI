@@ -1,5 +1,8 @@
 package com.plantsense.ai.presentation.profile
 
+import com.plantsense.ai.core.theme.Dimens
+import com.plantsense.ai.core.theme.TextMetrics
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -31,11 +34,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.plantsense.ai.R
+import com.plantsense.ai.core.theme.spacing
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(
+fun ProfileRoute(
     onNavigateToHome: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onBack: () -> Unit,
@@ -43,22 +47,30 @@ fun ProfileScreen(
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    ProfileScreen(
+        onNavigateToHome = onNavigateToHome,
+        onNavigateToHistory = onNavigateToHistory,
+        onBack = onBack,
+        onClearHistory = viewModel::clearHistory,
+        bottomBar = bottomBar,
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileScreen(
+    onNavigateToHome: () -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onBack: () -> Unit,
+    onClearHistory: () -> Unit,
+    bottomBar: @Composable () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val spacing = MaterialTheme.spacing
     val scrollState = rememberScrollState()
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     
-    // API Key states
-    val savedApiKey by viewModel.apiKey.collectAsStateWithLifecycle()
-    var apiKeyInput by remember(savedApiKey) { mutableStateOf(savedApiKey) }
-    var isKeyVisible by remember { mutableStateOf(false) }
-    var showSaveSuccess by remember { mutableStateOf(false) }
-
-    LaunchedEffect(showSaveSuccess) {
-        if (showSaveSuccess) {
-            delay(2000)
-            showSaveSuccess = false
-        }
-    }
-
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -70,13 +82,12 @@ fun ProfileScreen(
                     ) 
                 },
                 navigationIcon = {
-                    Box(
+                    IconButton(
+                        onClick = onBack,
                         modifier = Modifier
-                            .padding(start = 12.dp)
-                            .size(40.dp)
+                            .padding(start = Dimens.Dp12)
+                            .size(spacing.minTouchTarget)
                             .clip(CircleShape)
-                            .clickable { onBack() },
-                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack, 
@@ -99,29 +110,29 @@ fun ProfileScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 20.dp, vertical = 8.dp),
+                .padding(horizontal = spacing.xl, vertical = spacing.sm),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(spacing.lg)
         ) {
             // Card 1: Botanist Passport Card
             AnimatedProfileCard(index = 0) {
                 Card(
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(spacing.cardRadiusLg),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
+                            .padding(Dimens.Dp24),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // User Avatar
                         Box(
                             modifier = Modifier
-                                .size(80.dp)
+                                .size(Dimens.Dp80)
                                 .clip(CircleShape)
                                 .background(
                                     Brush.linearGradient(
@@ -137,16 +148,16 @@ fun ProfileScreen(
                                 imageVector = Icons.Rounded.Spa,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(44.dp)
+                                modifier = Modifier.size(Dimens.Dp44)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp16))
 
                         // Username and Level
                         Text(
                             text = stringResource(R.string.app_name),
-                            fontSize = 20.sp,
+                            fontSize = TextMetrics.Sp20,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -158,151 +169,34 @@ fun ProfileScreen(
                 }
             }
 
-       /*     // Card 2: Gemini API Key Config Card
-            AnimatedProfileCard(index = 1) {
-                Card(
-                    shape = RoundedCornerShape(28.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Key,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Gemini API Configuration",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = "Add your developer Gemini API Key to enable real-time plant diagnostics and care guidelines.",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            lineHeight = 16.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        OutlinedTextField(
-                            value = apiKeyInput,
-                            onValueChange = { apiKeyInput = it },
-                            label = { Text("Gemini API Key") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(16.dp),
-                            visualTransformation = if (isKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
-                                    Icon(
-                                        imageVector = if (isKeyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                        contentDescription = "Toggle Key Visibility",
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            AnimatedVisibility(
-                                visible = showSaveSuccess,
-                                enter = fadeIn() + expandHorizontally(),
-                                exit = fadeOut() + shrinkHorizontally()
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.CheckCircle,
-                                        contentDescription = null,
-                                        tint = Color(0xFF2E7D32),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Saved!",
-                                        color = Color(0xFF2E7D32),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-
-                            if (!showSaveSuccess) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-
-                            Button(
-                                onClick = {
-                                    viewModel.saveApiKey(apiKeyInput)
-                                    showSaveSuccess = true
-                                },
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary
-                                ),
-                                modifier = Modifier.height(44.dp)
-                            ) {
-                                Text("Save Key", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
-                        }
-                    }
-                }
-            }*/
-
             // Card 3: About PlantSense AI Card
             AnimatedProfileCard(index = 2) {
                 Card(
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(Dimens.Dp28),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(Dimens.Dp20)) {
                         Text(
                             text = stringResource(R.string.about_plantsense_ai),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp8))
                         Text(
                             text = stringResource(R.string.about_description),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            lineHeight = 20.sp
+                            lineHeight = TextMetrics.Sp20
                         )
                         
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp14))
                         
                         Text(
-                            text = stringResource(R.string.version_label, "1.0.0"),
+                            text = stringResource(R.string.version_label, com.plantsense.ai.BuildConfig.VERSION_NAME),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
@@ -314,38 +208,38 @@ fun ProfileScreen(
             // Card 4: Danger Zone (Clear History Card)
             AnimatedProfileCard(index = 3) {
                 Card(
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(Dimens.Dp28),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.12f)),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.15f)),
+                    border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.error.copy(alpha = 0.15f)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 80.dp) // Avoid bottom bar overlap
+                        .padding(bottom = Dimens.Dp80) // Avoid bottom bar overlap
                 ) {
                     Column(
-                        modifier = Modifier.padding(20.dp)
+                        modifier = Modifier.padding(Dimens.Dp20)
                     ) {
                         Text(
-                            text = "DANGER ZONE",
-                            fontSize = 10.sp,
+                            text = stringResource(R.string.danger_zone).uppercase(),
+                            fontSize = TextMetrics.Sp10,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error,
-                            letterSpacing = 1.sp
+                            letterSpacing = TextMetrics.Tracking1
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp6))
                         Text(
-                            text = "Permanently clear diagnostics history archives. This cannot be undone.",
-                            fontSize = 12.sp,
+                            text = stringResource(R.string.danger_zone_description),
+                            fontSize = TextMetrics.Sp12,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            lineHeight = 16.sp
+                            lineHeight = TextMetrics.Sp16
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp16))
                         Button(
                             onClick = { showClearHistoryDialog = true },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(Dimens.Dp14),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp)
+                                .height(Dimens.Dp44)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -354,10 +248,10 @@ fun ProfileScreen(
                                 Icon(
                                     imageVector = Icons.Rounded.Delete,
                                     contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(Dimens.Dp18)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(stringResource(R.string.clear_diagnostics_history), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Spacer(modifier = Modifier.width(Dimens.Dp8))
+                                Text(stringResource(R.string.clear_diagnostics_history), fontWeight = FontWeight.Bold, fontSize = TextMetrics.Sp14)
                             }
                         }
                     }
@@ -375,11 +269,11 @@ fun ProfileScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.clearHistory()
+                        onClearHistory()
                         showClearHistoryDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(Dimens.Dp12)
                 ) {
                     Text(stringResource(R.string.clear_all), fontWeight = FontWeight.Bold)
                 }
@@ -389,7 +283,7 @@ fun ProfileScreen(
                     Text(stringResource(R.string.cancel), fontWeight = FontWeight.SemiBold)
                 }
             },
-            shape = RoundedCornerShape(24.dp)
+            shape = RoundedCornerShape(Dimens.Dp24)
         )
     }
 }
@@ -426,14 +320,14 @@ private fun StatColItem(label: String, value: String) {
     ) {
         Text(
             text = value,
-            fontSize = 18.sp,
+            fontSize = TextMetrics.Sp18,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onSurface
         )
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(Dimens.Dp2))
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = TextMetrics.Sp11,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
             fontWeight = FontWeight.Medium
         )

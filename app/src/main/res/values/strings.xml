@@ -134,4 +134,123 @@
     <string name="network_error_msg">Network connection issue. Please check your internet connection and try again.</string>
     <string name="unknown_error_msg">An unexpected error occurred. Please try again.</string>
     <string name="api_error_msg">AI Service encountered an error. Please try again later.</string>
+    <string name="failed_to_process_image">Failed to process image, please try again.</string>
+
+    <!-- Shared actions and accessibility -->
+    <string name="share">Share</string>
+    <string name="save">Save</string>
+    <string name="scan_again">Scan Again</string>
+    <string name="see_all">See All</string>
+    <string name="start_scanning">Start Scanning</string>
+    <string name="clear_search_cd">Clear search</string>
+    <string name="open_profile_settings_cd">Open profile settings</string>
+    <string name="upload_gallery_cd">Upload from gallery</string>
+    <string name="turn_flash_on_cd">Turn flash on</string>
+    <string name="turn_flash_off_cd">Turn flash off</string>
+    <string name="expand_explanation_cd">Expand explanation</string>
+    <string name="collapse_explanation_cd">Collapse explanation</string>
+    <string name="add_favorite_cd">Add to favorites</string>
+    <string name="remove_favorite_cd">Remove from favorites</string>
+
+    <!-- Home dashboard -->
+    <string name="home_tagline">AI Botanical Intelligence &amp; Vigor Diagnostics</string>
+    <string name="botanical_scanner">Botanical scanner</string>
+    <string name="analyze_plant_vigor">Analyze Plant Vigor</string>
+    <string name="hero_scan_description">Take a picture of leaves to compile reports</string>
+    <string name="scan_plant">Scan Plant</string>
+    <string name="vigor_score_label">Vigor score</string>
+    <string name="total_scans_label">Total scans</string>
+    <string name="ai_vigor_rank_label">AI vigor rank</string>
+    <string name="percent_value">%1$d%%</string>
+    <string name="loading_placeholder">…</string>
+    <string name="rank_novice">Novice</string>
+    <string name="rank_explorer">Explorer</string>
+    <string name="rank_specialist">Specialist</string>
+    <string name="rank_expert">Expert</string>
+    <string name="todays_care_advice">Today’s Care Advice</string>
+    <string name="todays_care_advice_body">Houseplants adapt to their environment. Do not rotate them too frequently as they waste cell energy re-adjusting leaves to light source directions.</string>
+    <string name="species_label">Species</string>
+    <string name="pathology_label">Pathology</string>
+
+    <!-- Camera -->
+    <string name="mode_identify">Identify</string>
+    <string name="mode_diagnose">Diagnose</string>
+    <string name="copy_image_failed">Failed to copy picked image.</string>
+    <string name="capture_failed">Capture failed. Try again.</string>
+    <string name="align_plant_frame">Align the plant inside the frame.</string>
+
+    <!-- Loading -->
+    <string name="analyzing_your_plant">Analyzing your plant…</string>
+    <string name="loading_identifying_species">Identifying plant species</string>
+    <string name="loading_detecting_diseases">Detecting leaf diseases</string>
+    <string name="loading_evaluating_vigor">Evaluating botanical vigor</string>
+    <string name="loading_compiling_care">Compiling tailored care guide</string>
+    <string name="step_complete">Complete</string>
+    <string name="step_pending">Pending</string>
+
+    <!-- History filters and status -->
+    <string name="filter_all">All</string>
+    <string name="filter_healthy">Healthy</string>
+    <string name="filter_diseased">Diseased</string>
+    <string name="filter_favorites">Favorites</string>
+    <string name="history_empty_description">Start scanning plants to compile and save your botanical vigor reports.</string>
+    <string name="no_favorites_saved">No favorites saved</string>
+    <string name="favorites_empty_description">Heart scans in your history to filter them here.</string>
+    <string name="confidence_match">%1$d%% match</string>
+    <string name="healthy_vigor">Healthy vigor</string>
+    <string name="disease_alert">Disease alert</string>
+
+    <!-- Identification report -->
+    <string name="scan_unavailable">This scan is no longer available.</string>
+    <string name="unknown_value">Unknown</string>
+    <string name="no_description_available">No description available</string>
+    <string name="unknown_sunlight_requirements">Unknown sunlight requirements</string>
+    <string name="unknown_water_requirements">Unknown water requirements</string>
+    <string name="unknown_temperature_requirements">Unknown temperature requirements</string>
+    <string name="share_report_subject">PlantSense AI Report: %1$s</string>
+    <string name="share_report_body">Check out this PlantSense AI Report!\n\nPlant Name: %1$s\nScientific Name: %2$s\nMatch Confidence: %3$d%%\n\nDescription: %4$s\n\nWater: %5$s\nSunlight: %6$s\nTemperature: %7$s</string>
+    <string name="share_report_chooser">Share Plant Report</string>
+    <string name="report_saved">Report saved to archives successfully!</string>
+    <string name="verified_species">Verified species</string>
+    <string name="about_species">About Species</string>
+    <string name="disease_diagnostics_check">Disease Diagnostics Check</string>
+    <string name="healthy_leaf_diagnostic">Healthy leaf. No symptoms of active blight, spots, or cellular pathology detected by AI analysis.</string>
+    <string name="care_guide">Care Guide</string>
+    <string name="water">Water</string>
+    <string name="humidity">Humidity</string>
+    <string name="fertilizer">Fertilizer</string>
+    <string name="weekly">Weekly</string>
+    <string name="twice_weekly">Twice/wk</string>
+    <string name="direct_light">Direct</string>
+    <string name="indirect_light">Indirect</string>
+    <string name="shade">Shade</string>
+    <string name="dry_soil">Dry soil</string>
+    <string name="moist_soil">Moist soil</string>
+    <string name="moderate">Moderate</string>
+    <string name="monthly">Monthly</string>
+    <string name="interesting_facts">Interesting Facts</string>
+    <string name="full_botanical_explanation_title">Full Botanical Explanation</string>
+    <string name="full_botanical_explanation">Detailed botanical review for %1$s (%2$s). PlantSense AI has run visual cellular neural grid checks on this specimen. The confidence rate is %3$d%%. Soil irrigation should remain stable at %4$s while preserving light density at %5$s and temperature around %6$s.</string>
+    <string-array name="tomato_facts">
+        <item>Botanically, a tomato is a fruit (a berry), though it is treated as a vegetable in culinary applications.</item>
+        <item>Tomatoes were once feared as poisonous in Europe because they belong to the nightshade family.</item>
+        <item>The world record for the largest tomato plant reached a length of 19.8 meters (65 feet)!</item>
+    </string-array>
+    <string-array name="monstera_facts">
+        <item>Monstera deliciosa is famous for its natural leaf holes, which are called fenestrations.</item>
+        <item>The fenestrations help the plant pass strong winds through without tearing the leaves in tropical rainforests.</item>
+        <item>In its native habitat, it produces a delicious fruit that tastes like a mix of pineapple, banana, and mango.</item>
+    </string-array>
+    <string-array name="generic_plant_facts">
+        <item>This plant is highly valued for its visual foliage and adaptation to native outdoor and indoor environments.</item>
+        <item>Proper light exposure determines the vibrancy of its leaves and stem growth rate.</item>
+        <item>Regular care and monitoring prevent standard root rot or leaf spots.</item>
+    </string-array>
+
+    <!-- Splash and profile -->
+    <string name="splash_subtitle">AI Powered Plant Identification</string>
+    <string name="powered_by_gemini">Powered by Gemini AI</string>
+    <string name="danger_zone">Danger zone</string>
+    <string name="danger_zone_description">Permanently clear diagnostics history archives. This cannot be undone.</string>
+    <string name="detected">Detected</string>
 </resources>

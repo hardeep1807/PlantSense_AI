@@ -1,5 +1,8 @@
 package com.plantsense.ai.presentation.history
 
+import com.plantsense.ai.core.theme.Dimens
+import com.plantsense.ai.core.theme.TextMetrics
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -9,14 +12,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,17 +35,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.plantsense.ai.R
-import com.plantsense.ai.domain.model.ScanHistoryItem
+import com.plantsense.ai.core.theme.spacing
 import com.plantsense.ai.domain.model.ScanType
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.plantsense.ai.presentation.model.HistoryFilter
+import com.plantsense.ai.presentation.model.ScanCardUiModel
+import com.plantsense.ai.presentation.util.localizedDateTime
 import java.io.File
-import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(
+fun HistoryRoute(
     onNavigateToHome: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToIdentify: (String, Int) -> Unit,
@@ -54,35 +55,42 @@ fun HistoryScreen(
     modifier: Modifier = Modifier,
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
-    val scanHistory by viewModel.scanHistory.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    var itemToDelete by remember { mutableStateOf<ScanHistoryItem?>(null) }
-    
-    // UI Filters and local Favorites list mapping
-    var selectedFilter by remember { mutableStateOf("All") }
-    val favorites = remember { mutableStateListOf<Int>() }
-    
-    // Pull to refresh simulation
-    var isRefreshing by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    val filteredHistory = remember(scanHistory, selectedFilter, favorites.size) {
-        scanHistory.filter { item ->
-            when (selectedFilter) {
-                "All" -> true
-                "Healthy" -> {
-                    item.type == ScanType.DISEASE && (item.diseaseName.isNullOrEmpty() || item.diseaseName == "Healthy")
-                }
-                "Diseased" -> {
-                    item.type == ScanType.DISEASE && !(item.diseaseName.isNullOrEmpty() || item.diseaseName == "Healthy")
-                }
-                "Favorites" -> {
-                    favorites.contains(item.id)
-                }
-                else -> true
-            }
-        }
-    }
+    HistoryScreen(
+        state = state,
+        onQueryChange = viewModel::updateSearchQuery,
+        onFilterChange = viewModel::updateFilter,
+        onFavoriteToggle = viewModel::toggleFavorite,
+        onDelete = viewModel::deleteItem,
+        onNavigateToHome = onNavigateToHome,
+        onNavigateToProfile = onNavigateToProfile,
+        onNavigateToIdentify = onNavigateToIdentify,
+        onNavigateToDisease = onNavigateToDisease,
+        onBack = onBack,
+        bottomBar = bottomBar,
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HistoryScreen(
+    state: HistoryUiState,
+    onQueryChange: (String) -> Unit,
+    onFilterChange: (HistoryFilter) -> Unit,
+    onFavoriteToggle: (Int) -> Unit,
+    onDelete: (Int) -> Unit,
+    onNavigateToHome: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToIdentify: (String, Int) -> Unit,
+    onNavigateToDisease: (String, Int) -> Unit,
+    onBack: () -> Unit,
+    bottomBar: @Composable () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val spacing = MaterialTheme.spacing
+    var itemToDelete by remember { mutableStateOf<ScanCardUiModel?>(null) }
 
     Scaffold(
         topBar = {
@@ -112,19 +120,22 @@ fun HistoryScreen(
         ) {
             // Premium Search Bar
             OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.updateSearchQuery(it) },
+                value = state.query,
+                onValueChange = onQueryChange,
                 placeholder = { Text(stringResource(R.string.search_placeholder), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
                 leadingIcon = { Icon(imageVector = Icons.Rounded.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
-                            Icon(imageVector = Icons.Rounded.Close, contentDescription = "Clear search")
+                    if (state.query.isNotEmpty()) {
+                        IconButton(onClick = { onQueryChange("") }) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = stringResource(R.string.clear_search_cd)
+                            )
                         }
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(spacing.cardRadiusMd),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
@@ -133,26 +144,27 @@ fun HistoryScreen(
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .padding(horizontal = spacing.xl, vertical = Dimens.Dp6)
             )
 
             // Horizontal Filter Chips Row
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 20.dp)
+                    .padding(vertical = spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                contentPadding = PaddingValues(horizontal = spacing.xl)
             ) {
-                val chipList = listOf("All", "Healthy", "Diseased", "Favorites")
-                items(chipList.size) { index ->
-                    val filterName = chipList[index]
-                    val isSelected = selectedFilter == filterName
+                items(
+                    items = HistoryFilter.entries,
+                    key = { it.name }
+                ) { filter ->
+                    val isSelected = state.selectedFilter == filter
                     
                     FilterChip(
                         selected = isSelected,
-                        onClick = { selectedFilter = filterName },
-                        label = { Text(text = filterName, fontWeight = FontWeight.Bold) },
+                        onClick = { onFilterChange(filter) },
+                        label = { Text(text = stringResource(filter.labelRes), fontWeight = FontWeight.Bold) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = Color.White,
@@ -165,89 +177,76 @@ fun HistoryScreen(
                             borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
                             selectedBorderColor = Color.Transparent
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(Dimens.Dp12)
                     )
                 }
             }
 
-            // Pull to Refresh Box wrapping content
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    coroutineScope.launch {
-                        isRefreshing = true
-                        delay(1200)
-                        isRefreshing = false
-                    }
-                },
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f)
             ) {
-                if (filteredHistory.isEmpty()) {
+                if (state.items.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(24.dp)
+                            modifier = Modifier.padding(Dimens.Dp24)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(110.dp)
+                                    .size(Dimens.Dp110)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = if (selectedFilter == "Favorites") Icons.Rounded.Favorite else Icons.Rounded.History,
+                                    imageVector = if (state.selectedFilter == HistoryFilter.FAVORITES) Icons.Rounded.Favorite else Icons.Rounded.History,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(52.dp)
+                                    modifier = Modifier.size(Dimens.Dp52)
                                 )
                             }
-                            Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(Dimens.Dp20))
                             Text(
-                                text = if (selectedFilter == "Favorites") "No favorites saved" else stringResource(R.string.no_scans_found),
+                                text = stringResource(state.selectedFilter.emptyTitleRes),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimens.Dp8))
                             Text(
-                                text = if (selectedFilter == "Favorites") {
-                                    "Heart scans in your history to filter them here."
-                                } else {
-                                    "Start scanning plants to compile and save your botanical vigor reports."
-                                },
+                                text = stringResource(state.selectedFilter.emptyDescriptionRes),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                                 textAlign = TextAlign.Center,
-                                lineHeight = 18.sp,
-                                modifier = Modifier.width(280.dp)
+                                lineHeight = TextMetrics.Sp18,
+                                modifier = Modifier.width(Dimens.Dp280)
                             )
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(Dimens.Dp24))
                             Button(
                                 onClick = onNavigateToHome,
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                shape = RoundedCornerShape(16.dp),
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                                shape = RoundedCornerShape(Dimens.Dp16),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = Dimens.Dp2)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center,
-                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                    modifier = Modifier.padding(horizontal = Dimens.Dp8)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.CameraAlt,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(Dimens.Dp18)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(Dimens.Dp8))
                                     Text(
-                                        text = "Start Scanning",
+                                        text = stringResource(R.string.start_scanning),
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
                                     )
@@ -258,37 +257,30 @@ fun HistoryScreen(
                 } else {
                     // Lazy List with Cascading Animation Wrapper
                     LazyColumn(
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(horizontal = Dimens.Dp20, vertical = Dimens.Dp6),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.Dp12),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        itemsIndexed(filteredHistory, key = { _, item -> item.id }) { index, item ->
-                            AnimatedHistoryCard(index = index) {
-                                HistoryCard(
-                                    item = item,
-                                    isFavorited = favorites.contains(item.id),
-                                    onFavoriteToggle = {
-                                        if (favorites.contains(item.id)) {
-                                            favorites.remove(item.id)
-                                        } else {
-                                            favorites.add(item.id)
-                                        }
-                                    },
-                                    onClick = {
-                                        if (item.type == ScanType.IDENTIFICATION) {
-                                            onNavigateToIdentify(item.imageUrl, item.id)
-                                        } else {
-                                            onNavigateToDisease(item.imageUrl, item.id)
-                                        }
-                                    },
-                                    onDelete = { itemToDelete = item }
-                                )
-                            }
+                        items(items = state.items, key = { it.id }) { item ->
+                            HistoryCard(
+                                item = item,
+                                isFavorited = item.id in state.favoriteIds,
+                                onFavoriteToggle = { onFavoriteToggle(item.id) },
+                                onClick = {
+                                    if (item.type == ScanType.IDENTIFICATION) {
+                                        onNavigateToIdentify(item.imagePath, item.id)
+                                    } else {
+                                        onNavigateToDisease(item.imagePath, item.id)
+                                    }
+                                },
+                                onDelete = { itemToDelete = item },
+                                modifier = Modifier.animateItem()
+                            )
                         }
                         
                         // Bottom spacer padding for the bottom bar pill overlay
                         item {
-                            Spacer(modifier = Modifier.height(90.dp))
+                            Spacer(modifier = Modifier.height(Dimens.Dp90))
                         }
                     }
                 }
@@ -305,12 +297,11 @@ fun HistoryScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteItem(item.id)
-                        favorites.remove(item.id)
+                        onDelete(item.id)
                         itemToDelete = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(Dimens.Dp12)
                 ) {
                     Text(stringResource(R.string.delete_label), fontWeight = FontWeight.Bold)
                 }
@@ -320,78 +311,50 @@ fun HistoryScreen(
                     Text(stringResource(R.string.cancel), fontWeight = FontWeight.SemiBold)
                 }
             },
-            shape = RoundedCornerShape(24.dp)
+            shape = RoundedCornerShape(Dimens.Dp24)
         )
-    }
-}
-
-// Sequential cascading slide + fade animations
-@Composable
-private fun AnimatedHistoryCard(
-    index: Int,
-    content: @Composable () -> Unit
-) {
-    var isVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        // Sequenced entry cascade delays
-        delay(index * 60L)
-        isVisible = true
-    }
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(animationSpec = tween(durationMillis = 400)) + 
-                slideInVertically(
-                    animationSpec = tween(durationMillis = 400, easing = EaseOutBack),
-                    initialOffsetY = { it / 3 }
-                ),
-        exit = fadeOut(animationSpec = tween(durationMillis = 200)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        content()
     }
 }
 
 @Composable
 fun HistoryCard(
-    item: ScanHistoryItem,
+    item: ScanCardUiModel,
     isFavorited: Boolean,
     onFavoriteToggle: () -> Unit,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy • hh:mm a", Locale.getDefault()) }
-
     Card(
-        shape = RoundedCornerShape(24.dp),
+        onClick = onClick,
+        shape = RoundedCornerShape(Dimens.Dp24),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
+        border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2),
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(Dimens.Dp14),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Large Crop Thumbnail
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(Dimens.Dp80)
+                    .clip(RoundedCornerShape(Dimens.Dp16))
                     .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
             ) {
                 AsyncImage(
-                    model = File(item.imageUrl),
+                    model = File(item.imagePath),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(Dimens.Dp16))
 
             // Information Column
             Column(
@@ -399,24 +362,27 @@ fun HistoryCard(
             ) {
                 // Header tags row (Type badge + Vigor/Confidence indicators)
                 FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.Dp6),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.Dp4)
                 ) {
                     val tagColor = if (item.type == ScanType.IDENTIFICATION) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
-                    val label = if (item.type == ScanType.IDENTIFICATION) "Species" else "Pathology"
+                    val label = stringResource(
+                        if (item.type == ScanType.IDENTIFICATION) R.string.species_label
+                        else R.string.pathology_label
+                    )
                     
                     // Type Tag
                     Box(
                         modifier = Modifier
-                            .background(tagColor.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .background(tagColor.copy(alpha = 0.12f), RoundedCornerShape(Dimens.Dp6))
+                            .padding(horizontal = Dimens.Dp6, vertical = Dimens.Dp2)
                     ) {
                         Text(
                             text = label.uppercase(Locale.getDefault()),
                             color = tagColor,
-                            fontSize = 8.sp,
+                            fontSize = TextMetrics.Sp8,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp,
+                            letterSpacing = TextMetrics.TrackingHalf,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -424,33 +390,33 @@ fun HistoryCard(
 
                     // Confidence / Healthy Badges
                     if (item.type == ScanType.IDENTIFICATION) {
-                        val percent = ((item.confidence ?: 0.85) * 100).toInt()
+                        val percent = item.confidencePercent ?: 85
                         Box(
                             modifier = Modifier
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(Dimens.Dp6))
+                                .padding(horizontal = Dimens.Dp6, vertical = Dimens.Dp2)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Rounded.CheckCircle,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(10.dp)
+                                    modifier = Modifier.size(Dimens.Dp10)
                                 )
-                                Spacer(modifier = Modifier.width(3.dp))
+                                Spacer(modifier = Modifier.width(Dimens.Dp3))
                                 Text(
-                                    text = "$percent% MATCH",
+                                    text = stringResource(R.string.confidence_match, percent).uppercase(Locale.getDefault()),
                                     color = MaterialTheme.colorScheme.primary,
-                                    fontSize = 8.sp,
+                                    fontSize = TextMetrics.Sp8,
                                     fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.5.sp,
+                                    letterSpacing = TextMetrics.TrackingHalf,
                                     maxLines = 1,
                                     softWrap = false
                                 )
                             }
                         }
                     } else {
-                        val isHealthy = item.diseaseName.isNullOrEmpty() || item.diseaseName == "Healthy"
+                        val isHealthy = item.isHealthy
                         val isDark = isSystemInDarkTheme()
                         val badgeBg = if (isHealthy) {
                             Color(0xFF2E7D32).copy(alpha = 0.1f)
@@ -462,28 +428,30 @@ fun HistoryCard(
                         } else {
                             if (isDark) Color(0xFFFFD54F) else Color(0xFFD84315)
                         }
-                        val badgeLabel = if (isHealthy) "HEALTHY VIGOR" else "DISEASE ALERT"
+                        val badgeLabel = stringResource(
+                            if (isHealthy) R.string.healthy_vigor else R.string.disease_alert
+                        ).uppercase(Locale.getDefault())
                         val badgeIcon = if (isHealthy) Icons.Rounded.Spa else Icons.Rounded.Warning
                         
                         Box(
                             modifier = Modifier
-                                .background(badgeBg, RoundedCornerShape(6.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .background(badgeBg, RoundedCornerShape(Dimens.Dp6))
+                                .padding(horizontal = Dimens.Dp6, vertical = Dimens.Dp2)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = badgeIcon,
                                     contentDescription = null,
                                     tint = badgeTint,
-                                    modifier = Modifier.size(10.dp)
+                                    modifier = Modifier.size(Dimens.Dp10)
                                 )
-                                Spacer(modifier = Modifier.width(3.dp))
+                                Spacer(modifier = Modifier.width(Dimens.Dp3))
                                 Text(
                                     text = badgeLabel,
                                     color = badgeTint,
-                                    fontSize = 8.sp,
+                                    fontSize = TextMetrics.Sp8,
                                     fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.5.sp,
+                                    letterSpacing = TextMetrics.TrackingHalf,
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -492,79 +460,71 @@ fun HistoryCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp6))
 
                 // Plant / Disease Title
-                val displayName = if (item.type == ScanType.IDENTIFICATION) {
-                    item.plantName ?: stringResource(R.string.unknown_plant)
-                } else {
-                    item.diseaseName ?: stringResource(R.string.healthy)
-                }
-
                 Text(
-                    text = displayName,
-                    fontSize = 16.sp,
+                    text = item.title.asString(),
+                    fontSize = TextMetrics.Sp16,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
 
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp2))
 
                 // Formatted Date
                 Text(
-                    text = dateFormat.format(Date(item.timestamp)),
-                    fontSize = 11.sp,
+                    text = localizedDateTime(item.timestamp),
+                    fontSize = TextMetrics.Sp11,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     fontWeight = FontWeight.Medium
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Dimens.Dp8))
 
-            // Action Heart Toggle + Delete Icons + Navigation Chevron (highly compact)
+            // Action Heart Toggle + Delete Icons + Navigation Chevron (48dp touch target compliant)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.Dp2)
             ) {
                 // Favorites heart toggle
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable { onFavoriteToggle() }
-                        .padding(6.dp)
+                IconButton(
+                    onClick = onFavoriteToggle,
+                    modifier = Modifier.size(Dimens.Dp48)
                 ) {
                     Icon(
                         imageVector = if (isFavorited) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = "Favorite scan",
+                        contentDescription = stringResource(
+                            if (isFavorited) R.string.remove_favorite_cd else R.string.add_favorite_cd
+                        ),
                         tint = if (isFavorited) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Dimens.Dp22)
                     )
                 }
 
                 // Delete icon
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable { onDelete() }
-                        .padding(6.dp)
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(Dimens.Dp48)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Delete,
                         contentDescription = stringResource(R.string.delete_from_history_cd),
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.65f),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(Dimens.Dp20)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(2.dp))
+                Spacer(modifier = Modifier.width(Dimens.Dp2))
 
-                // Nav Chevron
+                // Nav Chevron (decorative)
                 Icon(
                     imageVector = Icons.Rounded.ChevronRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(Dimens.Dp18)
                 )
             }
         }

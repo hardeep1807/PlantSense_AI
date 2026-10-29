@@ -1,8 +1,9 @@
 package com.plantsense.ai.presentation.disease
 
-import android.graphics.BitmapFactory
+import com.plantsense.ai.core.theme.Dimens
+import com.plantsense.ai.core.theme.TextMetrics
+
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.BrokenImage
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Spa
 import androidx.compose.material.icons.rounded.Warning
@@ -22,9 +24,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -32,18 +37,20 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.plantsense.ai.R
+import com.plantsense.ai.core.theme.spacing
 import com.plantsense.ai.domain.model.DiseaseDetectionResult
 import com.plantsense.ai.presentation.common.PremiumLoadingScreen
 import java.io.File
 
 @Composable
-fun DiseaseScreen(
+fun DiseaseRoute(
     imagePath: String,
     historyId: Int,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DiseaseViewModel = hiltViewModel()
 ) {
+    val spacing = MaterialTheme.spacing
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(imagePath, historyId) {
@@ -74,7 +81,7 @@ fun DiseaseScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(24.dp),
+                            .padding(spacing.xxl),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
@@ -84,22 +91,22 @@ fun DiseaseScreen(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(spacing.md))
                         Text(
-                            text = if (state.messageResId != null) stringResource(state.messageResId) else state.message,
+                            text = state.message.asString(),
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
                         )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(spacing.xxl))
                         
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(spacing.md)
                         ) {
                             OutlinedButton(
                                 onClick = onBack,
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.height(48.dp)
+                                shape = RoundedCornerShape(spacing.lg),
+                                modifier = Modifier.height(spacing.minTouchTarget)
                             ) {
                                 Text(stringResource(R.string.back), fontWeight = FontWeight.Bold)
                             }
@@ -107,11 +114,11 @@ fun DiseaseScreen(
                             if (historyId == -1) {
                                 Button(
                                     onClick = { viewModel.diagnose(imagePath) },
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = RoundedCornerShape(spacing.lg),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.secondary
                                     ),
-                                    modifier = Modifier.height(48.dp)
+                                    modifier = Modifier.height(spacing.minTouchTarget)
                                 ) {
                                     Text(stringResource(R.string.retry_diagnostic), fontWeight = FontWeight.Bold)
                                 }
@@ -131,13 +138,6 @@ fun DiseaseContent(
     onBack: () -> Unit
 ) {
     val scrollState = rememberScrollState()
-    val bitmap = remember(imagePath) {
-        try {
-            BitmapFactory.decodeFile(imagePath)
-        } catch (e: Exception) {
-            null
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -148,16 +148,19 @@ fun DiseaseContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(320.dp)
+                .height(Dimens.Dp320)
         ) {
-            bitmap?.let {
-                Image(
-                    bitmap = it.asImageBitmap(),
-                    contentDescription = stringResource(R.string.analyzed_leaf_cd),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(File(imagePath))
+                    .crossfade(true)
+                    .build(),
+                contentDescription = result.diseaseName ?: stringResource(R.string.analyzed_leaf_cd),
+                contentScale = ContentScale.Crop,
+                placeholder = rememberVectorPainter(Icons.Rounded.Spa),
+                error = rememberVectorPainter(Icons.Rounded.BrokenImage),
+                modifier = Modifier.fillMaxSize()
+            )
             
             // Vignette overlay
             Box(
@@ -172,86 +175,85 @@ fun DiseaseContent(
             )
 
             // Floating Circular Back Button
-            Box(
+            IconButton(
+                onClick = onBack,
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(start = 16.dp, top = 16.dp)
-                    .size(40.dp)
+                    .padding(start = Dimens.Dp16, top = Dimens.Dp16)
+                    .size(Dimens.Dp48)
                     .clip(CircleShape)
                     .background(Color.Black.copy(alpha = 0.4f))
-                    .clickable { onBack() },
-                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = stringResource(R.string.back_cd),
                     tint = Color.White,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(Dimens.Dp20)
                 )
             }
         }
 
         Column(
             modifier = Modifier
-                .padding(24.dp)
+                .padding(Dimens.Dp24)
                 .fillMaxWidth()
         ) {
             if (result.isHealthy) {
                 // Healthy Banner badge
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(Dimens.Dp8))
                         .background(Color(0xFFE8F5E9))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .padding(horizontal = Dimens.Dp10, vertical = Dimens.Dp4)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Rounded.CheckCircle,
                             contentDescription = null,
                             tint = Color(0xFF2E7D32),
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(Dimens.Dp14)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(Dimens.Dp6))
                         Text(
-                            text = "HEALTHY",
+                            text = stringResource(R.string.healthy).uppercase(),
                             color = Color(0xFF2E7D32),
-                            fontSize = 10.sp,
+                            fontSize = TextMetrics.Sp10,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                            letterSpacing = TextMetrics.Tracking1
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp10))
 
                 Text(
                     text = stringResource(R.string.plant_is_healthy),
-                    fontSize = 32.sp,
+                    fontSize = TextMetrics.Sp32,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     text = stringResource(R.string.no_disease_detected),
-                    fontSize = 15.sp,
+                    fontSize = TextMetrics.Sp15,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = Dimens.Dp4)
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp24))
 
                 // Healthy suggestions custom Card
                 Card(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(Dimens.Dp24),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                    border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                     modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2)
                 ) {
-                    Column(modifier = Modifier.padding(24.dp)) {
+                    Column(modifier = Modifier.padding(Dimens.Dp24)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(Dimens.Dp36)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                                 contentAlignment = Alignment.Center
@@ -260,10 +262,10 @@ fun DiseaseContent(
                                     imageVector = Icons.Rounded.Spa,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(Dimens.Dp20)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(Dimens.Dp12))
                             Text(
                                 text = stringResource(R.string.care_suggestions),
                                 fontWeight = FontWeight.Bold,
@@ -272,12 +274,12 @@ fun DiseaseContent(
                             )
                         }
                         
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp12))
                         
                         Text(
                             text = stringResource(R.string.healthy_care_suggestions),
                             style = MaterialTheme.typography.bodyMedium,
-                            lineHeight = 22.sp,
+                            lineHeight = TextMetrics.Sp22,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                         )
                     }
@@ -286,53 +288,53 @@ fun DiseaseContent(
                 // Pathology detected warning badge
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(Dimens.Dp8))
                         .background(MaterialTheme.colorScheme.errorContainer)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                        .padding(horizontal = Dimens.Dp10, vertical = Dimens.Dp4)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Rounded.Warning,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(Dimens.Dp14)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(Dimens.Dp6))
                         Text(
                             text = stringResource(
                                 R.string.severity_label,
-                                result.severity ?: "Detected"
+                                result.severity ?: stringResource(R.string.detected)
                             ).uppercase(),
                             color = MaterialTheme.colorScheme.error,
-                            fontSize = 10.sp,
+                            fontSize = TextMetrics.Sp10,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                            letterSpacing = TextMetrics.Tracking1
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp10))
 
                 // Disease Header
                 Text(
                     text = result.diseaseName ?: stringResource(R.string.leaf_pathology),
-                    fontSize = 32.sp,
+                    fontSize = TextMetrics.Sp32,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onBackground,
-                    lineHeight = 38.sp
+                    lineHeight = TextMetrics.Sp38
                 )
                 Text(
                     text = stringResource(R.string.pathology_report_compiled),
-                    fontSize = 15.sp,
+                    fontSize = TextMetrics.Sp15,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = Dimens.Dp4)
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimens.Dp24))
 
                 // Detailed report sections (structured)
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.Dp16),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     // Cause
@@ -373,15 +375,15 @@ fun DiseaseContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp32))
 
             // Action return to camera Button
             Button(
                 onClick = onBack,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(16.dp),
+                    .height(Dimens.Dp52),
+                shape = RoundedCornerShape(Dimens.Dp16),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (result.isHealthy) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                 )
@@ -389,12 +391,12 @@ fun DiseaseContent(
                 Text(
                     text = stringResource(R.string.back_to_camera),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
+                    fontSize = TextMetrics.Sp15,
                     color = Color.White
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp24))
         }
     }
 }
@@ -402,36 +404,36 @@ fun DiseaseContent(
 @Composable
 fun DetailReportCard(title: String, content: String, tagColor: Color) {
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(Dimens.Dp24),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(Dimens.Dp20)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(Dimens.Dp8)
                         .clip(CircleShape)
                         .background(tagColor)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimens.Dp8))
                 Text(
                     text = title.uppercase(),
-                    fontSize = 11.sp,
+                    fontSize = TextMetrics.Sp11,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.sp
+                    letterSpacing = TextMetrics.Tracking1
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp8))
             Text(
                 text = content,
                 style = MaterialTheme.typography.bodyMedium,
-                lineHeight = 22.sp,
+                lineHeight = TextMetrics.Sp22,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             )
         }

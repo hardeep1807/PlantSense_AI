@@ -19,3 +19,9 @@ data class ScanHistoryItem(
     val diseaseTreatment: String? = null,
     val diseasePrevention: String? = null
 )
+
+/** Compatibility for records created before healthy diagnoses were stored with a null name. */
+val ScanHistoryItem.isHealthyDiagnosis: Boolean
+    get() = diseaseName.isNullOrEmpty() || diseaseName == LEGACY_HEALTHY_DISEASE_NAME
+
+private const val LEGACY_HEALTHY_DISEASE_NAME = "Healthy"

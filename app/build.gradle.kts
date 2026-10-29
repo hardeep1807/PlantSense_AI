@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
   alias(libs.plugins.android.application)
   kotlin("android")
@@ -33,9 +35,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
       compose = true
       aidl = false
@@ -51,6 +50,12 @@ android {
     lint {
         abortOnError = false
         checkReleaseBuilds = false
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -97,6 +102,7 @@ dependencies {
   // Navigation
   implementation(libs.androidx.navigation.compose)
   implementation(libs.coil.compose)
+  implementation(libs.kotlinx.collections.immutable)
 
   // Hilt
   implementation(libs.hilt.android)

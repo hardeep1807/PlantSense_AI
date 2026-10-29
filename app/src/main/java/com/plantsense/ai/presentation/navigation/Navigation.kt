@@ -1,12 +1,15 @@
 package com.plantsense.ai.presentation.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.EaseInOutSine
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -14,13 +17,19 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import com.plantsense.ai.presentation.camera.CameraScreen
-import com.plantsense.ai.presentation.disease.DiseaseScreen
-import com.plantsense.ai.presentation.identification.IdentificationScreen
-import com.plantsense.ai.presentation.history.HistoryScreen
-import com.plantsense.ai.presentation.profile.ProfileScreen
-import com.plantsense.ai.presentation.home.HomeScreen
+import com.plantsense.ai.presentation.camera.CameraRoute
+import com.plantsense.ai.presentation.disease.DiseaseRoute
+import com.plantsense.ai.presentation.identification.IdentificationRoute
+import com.plantsense.ai.presentation.history.HistoryRoute
+import com.plantsense.ai.presentation.profile.ProfileRoute
+import com.plantsense.ai.presentation.home.HomeRoute
 import com.plantsense.ai.presentation.splash.SplashScreen
+
+private fun isBottomBarRoute(destination: NavDestination?): Boolean {
+    return destination?.hasRoute<AppRoute.Home>() == true ||
+           destination?.hasRoute<AppRoute.History>() == true ||
+           destination?.hasRoute<AppRoute.Profile>() == true
+}
 
 @Composable
 fun MainNavigation() {
@@ -54,28 +63,44 @@ fun MainNavigation() {
         navController = navController,
         startDestination = AppRoute.Splash,
         enterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.Left,
-                animationSpec = tween(400, easing = EaseInOutSine)
-            ) + fadeIn(animationSpec = tween(400))
+            if (isBottomBarRoute(initialState.destination) && isBottomBarRoute(targetState.destination)) {
+                EnterTransition.None
+            } else {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(400, easing = EaseInOutSine)
+                ) + fadeIn(animationSpec = tween(400))
+            }
         },
         exitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.Left,
-                animationSpec = tween(400, easing = EaseInOutSine)
-            ) + fadeOut(animationSpec = tween(400))
+            if (isBottomBarRoute(initialState.destination) && isBottomBarRoute(targetState.destination)) {
+                ExitTransition.None
+            } else {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(400, easing = EaseInOutSine)
+                ) + fadeOut(animationSpec = tween(400))
+            }
         },
         popEnterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.Right,
-                animationSpec = tween(400, easing = EaseInOutSine)
-            ) + fadeIn(animationSpec = tween(400))
+            if (isBottomBarRoute(initialState.destination) && isBottomBarRoute(targetState.destination)) {
+                EnterTransition.None
+            } else {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(400, easing = EaseInOutSine)
+                ) + fadeIn(animationSpec = tween(400))
+            }
         },
         popExitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.Right,
-                animationSpec = tween(400, easing = EaseInOutSine)
-            ) + fadeOut(animationSpec = tween(400))
+            if (isBottomBarRoute(initialState.destination) && isBottomBarRoute(targetState.destination)) {
+                ExitTransition.None
+            } else {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(400, easing = EaseInOutSine)
+                ) + fadeOut(animationSpec = tween(400))
+            }
         }
     ) {
         composable<AppRoute.Splash> {
@@ -88,7 +113,7 @@ fun MainNavigation() {
             )
         }
         composable<AppRoute.Home> {
-            HomeScreen(
+            HomeRoute(
                 onNavigateToCamera = { navController.navigate(AppRoute.Camera) },
                 onNavigateToHistory = { navController.navigate(AppRoute.History) },
                 onNavigateToProfile = { navController.navigate(AppRoute.Profile) },
@@ -102,20 +127,24 @@ fun MainNavigation() {
             )
         }
         composable<AppRoute.Camera> {
-            CameraScreen(
+            CameraRoute(
                 onNavigateToHistory = { navController.navigate(AppRoute.History) },
                 onNavigateToProfile = { navController.navigate(AppRoute.Profile) },
-                onNavigateToIdentify = { path -> 
-                    navController.navigate(AppRoute.Identify(path = path, historyId = -1)) 
+                onNavigateToIdentify = { path ->
+                    navController.navigate(AppRoute.Identify(path = path, historyId = -1)) {
+                        popUpTo(AppRoute.Camera) { inclusive = true }
+                    }
                 },
-                onNavigateToDisease = { path -> 
-                    navController.navigate(AppRoute.Disease(path = path, historyId = -1)) 
+                onNavigateToDisease = { path ->
+                    navController.navigate(AppRoute.Disease(path = path, historyId = -1)) {
+                        popUpTo(AppRoute.Camera) { inclusive = true }
+                    }
                 }
             )
         }
         composable<AppRoute.Identify> { backStackEntry ->
             val key: AppRoute.Identify = backStackEntry.toRoute()
-            IdentificationScreen(
+            IdentificationRoute(
                 imagePath = key.path,
                 historyId = key.historyId,
                 onBack = { navController.popBackStack() }
@@ -123,14 +152,14 @@ fun MainNavigation() {
         }
         composable<AppRoute.Disease> { backStackEntry ->
             val key: AppRoute.Disease = backStackEntry.toRoute()
-            DiseaseScreen(
+            DiseaseRoute(
                 imagePath = key.path,
                 historyId = key.historyId,
                 onBack = { navController.popBackStack() }
             )
         }
         composable<AppRoute.History> {
-            HistoryScreen(
+            HistoryRoute(
                 onNavigateToHome = { navController.navigate(AppRoute.Home) },
                 onNavigateToProfile = { navController.navigate(AppRoute.Profile) },
                 onNavigateToIdentify = { path, id -> 
@@ -144,7 +173,7 @@ fun MainNavigation() {
             )
         }
         composable<AppRoute.Profile> {
-            ProfileScreen(
+            ProfileRoute(
                 onNavigateToHome = { navController.navigate(AppRoute.Home) },
                 onNavigateToHistory = { navController.navigate(AppRoute.History) },
                 onBack = { navController.popBackStack() },

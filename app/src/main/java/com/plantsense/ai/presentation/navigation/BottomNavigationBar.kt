@@ -1,5 +1,8 @@
 package com.plantsense.ai.presentation.navigation
 
+import com.plantsense.ai.core.theme.Dimens
+import com.plantsense.ai.core.theme.TextMetrics
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -34,16 +37,16 @@ fun BottomNavigationBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 12.dp),
+            .padding(horizontal = Dimens.Dp24, vertical = Dimens.Dp12),
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(Dimens.Dp28),
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-            tonalElevation = 8.dp,
-            shadowElevation = 10.dp,
+            tonalElevation = Dimens.Dp8,
+            shadowElevation = Dimens.Dp10,
             border = BorderStroke(
-                width = 1.dp,
+                width = Dimens.Dp1,
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)
             ),
             modifier = Modifier.fillMaxWidth()
@@ -51,7 +54,7 @@ fun BottomNavigationBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = Dimens.Dp12, vertical = Dimens.Dp8),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -100,11 +103,11 @@ private fun RowScope.NavigationTabItem(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .weight(1f)
-            .height(48.dp)
+            .height(Dimens.Dp48)
     ) {
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(Dimens.Dp24))
                 .background(
                     if (isSelected) {
                         MaterialTheme.colorScheme.primaryContainer
@@ -117,7 +120,7 @@ private fun RowScope.NavigationTabItem(
                     indication = null, // Disable default grey ripple for premium touch feel
                     onClick = onClick
                 )
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = Dimens.Dp16, vertical = Dimens.Dp8)
                 .animateContentSize(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
@@ -130,11 +133,11 @@ private fun RowScope.NavigationTabItem(
                 } else {
                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 },
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(Dimens.Dp24)
             )
             
             if (isSelected) {
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimens.Dp8))
                 Text(
                     text = labelText,
                     color = MaterialTheme.colorScheme.primary,

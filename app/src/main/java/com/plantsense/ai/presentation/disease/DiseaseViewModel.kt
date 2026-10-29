@@ -1,6 +1,7 @@
 package com.plantsense.ai.presentation.disease
 
 import androidx.lifecycle.ViewModel
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
 import com.plantsense.ai.core.di.IoDispatcher
 import com.plantsense.ai.core.error.ErrorMapper
@@ -8,9 +9,11 @@ import com.plantsense.ai.core.network.NetworkResult
 import com.plantsense.ai.domain.model.DiseaseDetectionResult
 import com.plantsense.ai.domain.model.ScanHistoryItem
 import com.plantsense.ai.domain.model.ScanType
+import com.plantsense.ai.domain.model.isHealthyDiagnosis
 import com.plantsense.ai.domain.usecase.DetectDiseaseUseCase
 import com.plantsense.ai.domain.usecase.GetScanHistoryItemUseCase
 import com.plantsense.ai.domain.usecase.SaveScanUseCase
+import com.plantsense.ai.presentation.util.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,9 +22,11 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface DiseaseUiState {
-    object Loading : DiseaseUiState
+    data object Loading : DiseaseUiState
+    @Immutable
     data class Success(val result: DiseaseDetectionResult) : DiseaseUiState
-    data class Error(val message: String, val messageResId: Int? = null) : DiseaseUiState
+    @Immutable
+    data class Error(val message: UiText) : DiseaseUiState
 }
 
 @HiltViewModel
@@ -45,7 +50,7 @@ class DiseaseViewModel @Inject constructor(
                 if (item != null) {
                     _uiState.value = DiseaseUiState.Success(
                         DiseaseDetectionResult(
-                            isHealthy = item.diseaseName.isNullOrEmpty() || item.diseaseName == "Healthy",
+                            isHealthy = item.isHealthyDiagnosis,
                             diseaseName = item.diseaseName,
                             cause = item.diseaseCause,
                             severity = item.diseaseSeverity,
@@ -55,7 +60,9 @@ class DiseaseViewModel @Inject constructor(
                         )
                     )
                 } else {
-                    _uiState.value = DiseaseUiState.Error("This scan is no longer available")
+                    _uiState.value = DiseaseUiState.Error(
+                        UiText.StringResource(com.plantsense.ai.R.string.scan_unavailable)
+                    )
                 }
             }
         } else {
@@ -84,7 +91,7 @@ class DiseaseViewModel @Inject constructor(
                                 careLight = null,
                                 careWater = null,
                                 careTemp = null,
-                                diseaseName = result.data.diseaseName ?: "Healthy",
+                                diseaseName = if (result.data.isHealthy) null else result.data.diseaseName,
                                 diseaseSeverity = result.data.severity,
                                 diseaseCause = result.data.cause,
                                 diseaseSymptoms = result.data.symptoms,
@@ -96,24 +103,15 @@ class DiseaseViewModel @Inject constructor(
                 }
                 is NetworkResult.ApiError -> {
                     val uiError = ErrorMapper.mapToUiError(result)
-                    _uiState.value = DiseaseUiState.Error(
-                        message = uiError.fallbackMessage ?: "API Error",
-                        messageResId = uiError.messageResId
-                    )
+                    _uiState.value = DiseaseUiState.Error(UiText.StringResource(uiError.messageResId))
                 }
                 is NetworkResult.NetworkError -> {
                     val uiError = ErrorMapper.mapToUiError(result)
-                    _uiState.value = DiseaseUiState.Error(
-                        message = uiError.fallbackMessage ?: "Network Error",
-                        messageResId = uiError.messageResId
-                    )
+                    _uiState.value = DiseaseUiState.Error(UiText.StringResource(uiError.messageResId))
                 }
                 is NetworkResult.UnknownError -> {
                     val uiError = ErrorMapper.mapToUiError(result)
-                    _uiState.value = DiseaseUiState.Error(
-                        message = uiError.fallbackMessage ?: "Unknown Error",
-                        messageResId = uiError.messageResId
-                    )
+                    _uiState.value = DiseaseUiState.Error(UiText.StringResource(uiError.messageResId))
                 }
             }
         }

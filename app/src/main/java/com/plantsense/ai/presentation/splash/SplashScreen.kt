@@ -1,5 +1,8 @@
 package com.plantsense.ai.presentation.splash
 
+import com.plantsense.ai.core.theme.Dimens
+import com.plantsense.ai.core.theme.TextMetrics
+
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -19,9 +22,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.plantsense.ai.core.theme.spacing
+import com.plantsense.ai.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -30,6 +36,7 @@ fun SplashScreen(
     onNavigateToHome: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val spacing = MaterialTheme.spacing
     // Animation states
     val scale = remember { Animatable(0.6f) }
     val alpha = remember { Animatable(0f) }
@@ -97,7 +104,7 @@ fun SplashScreen(
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .size(170.dp)
+                    .size(Dimens.Dp170)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
@@ -111,7 +118,7 @@ fun SplashScreen(
                 // Centered Logo Circle
                 Box(
                     modifier = Modifier
-                        .size(90.dp)
+                        .size(Dimens.Dp90)
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(
@@ -126,30 +133,30 @@ fun SplashScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Spa,
-                        contentDescription = "PlantSense AI Logo",
+                        contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(52.dp)
+                        modifier = Modifier.size(Dimens.Dp52)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp28))
 
             // App Name Title
             Text(
-                text = "PlantSense AI",
-                fontSize = 32.sp,
+                text = stringResource(R.string.app_name),
+                fontSize = TextMetrics.Sp32,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onBackground,
-                letterSpacing = (-0.5).sp
+                letterSpacing = TextMetrics.TrackingNegativeHalf
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp6))
 
             // Subtitle
             Text(
-                text = "AI Powered Plant Identification",
-                fontSize = 14.sp,
+                text = stringResource(R.string.splash_subtitle),
+                fontSize = TextMetrics.Sp14,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
             )
@@ -160,15 +167,15 @@ fun SplashScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = 36.dp)
+                .padding(bottom = Dimens.Dp36)
                 .alpha(alpha.value)
         ) {
             Text(
-                text = "POWERED BY GEMINI AI",
-                fontSize = 11.sp,
+                text = stringResource(R.string.powered_by_gemini).uppercase(),
+                fontSize = TextMetrics.Sp11,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 2.sp
+                letterSpacing = TextMetrics.Tracking2
             )
         }
     }

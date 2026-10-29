@@ -1,6 +1,7 @@
 package com.plantsense.ai.presentation.identification
 
 import androidx.lifecycle.ViewModel
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
 import com.plantsense.ai.core.di.IoDispatcher
 import com.plantsense.ai.core.error.ErrorMapper
@@ -11,6 +12,7 @@ import com.plantsense.ai.domain.model.ScanType
 import com.plantsense.ai.domain.usecase.GetScanHistoryItemUseCase
 import com.plantsense.ai.domain.usecase.IdentifyPlantUseCase
 import com.plantsense.ai.domain.usecase.SaveScanUseCase
+import com.plantsense.ai.presentation.util.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,9 +21,11 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface IdentificationUiState {
-    object Loading : IdentificationUiState
+    data object Loading : IdentificationUiState
+    @Immutable
     data class Success(val result: PlantIdentificationResult) : IdentificationUiState
-    data class Error(val message: String, val messageResId: Int? = null) : IdentificationUiState
+    @Immutable
+    data class Error(val message: UiText) : IdentificationUiState
 }
 
 @HiltViewModel
@@ -45,17 +49,19 @@ class IdentificationViewModel @Inject constructor(
                 if (item != null) {
                     _uiState.value = IdentificationUiState.Success(
                         PlantIdentificationResult(
-                            plantName = item.plantName ?: "Unknown Plant",
-                            botanicalName = item.botanicalName ?: "Unknown",
+                            plantName = item.plantName.orEmpty(),
+                            botanicalName = item.botanicalName.orEmpty(),
                             confidence = item.confidence ?: 0.0,
-                            description = item.description ?: "No description available",
-                            careLight = item.careLight ?: "Unknown sunlight requirements",
-                            careWater = item.careWater ?: "Unknown water requirements",
-                            careTemp = item.careTemp ?: "Unknown temperature requirements"
+                            description = item.description.orEmpty(),
+                            careLight = item.careLight.orEmpty(),
+                            careWater = item.careWater.orEmpty(),
+                            careTemp = item.careTemp.orEmpty()
                         )
                     )
                 } else {
-                    _uiState.value = IdentificationUiState.Error("This scan is no longer available")
+                    _uiState.value = IdentificationUiState.Error(
+                        UiText.StringResource(com.plantsense.ai.R.string.scan_unavailable)
+                    )
                 }
             }
         } else {
@@ -96,24 +102,15 @@ class IdentificationViewModel @Inject constructor(
                 }
                 is NetworkResult.ApiError -> {
                     val uiError = ErrorMapper.mapToUiError(result)
-                    _uiState.value = IdentificationUiState.Error(
-                        message = uiError.fallbackMessage ?: "API Error",
-                        messageResId = uiError.messageResId
-                    )
+                    _uiState.value = IdentificationUiState.Error(UiText.StringResource(uiError.messageResId))
                 }
                 is NetworkResult.NetworkError -> {
                     val uiError = ErrorMapper.mapToUiError(result)
-                    _uiState.value = IdentificationUiState.Error(
-                        message = uiError.fallbackMessage ?: "Network Error",
-                        messageResId = uiError.messageResId
-                    )
+                    _uiState.value = IdentificationUiState.Error(UiText.StringResource(uiError.messageResId))
                 }
                 is NetworkResult.UnknownError -> {
                     val uiError = ErrorMapper.mapToUiError(result)
-                    _uiState.value = IdentificationUiState.Error(
-                        message = uiError.fallbackMessage ?: "Unknown Error",
-                        messageResId = uiError.messageResId
-                    )
+                    _uiState.value = IdentificationUiState.Error(UiText.StringResource(uiError.messageResId))
                 }
             }
         }

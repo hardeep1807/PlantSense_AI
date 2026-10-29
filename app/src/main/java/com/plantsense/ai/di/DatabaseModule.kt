@@ -22,7 +22,7 @@ object DatabaseModule {
             context,
             PlantDatabase::class.java,
             "plantsense_db"
-        ).fallbackToDestructiveMigration().build()
+        ).fallbackToDestructiveMigration(dropAllTables = true).build()
     }
 
     @Provides

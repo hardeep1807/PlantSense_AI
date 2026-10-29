@@ -1,5 +1,8 @@
 package com.plantsense.ai.presentation.camera
 
+import com.plantsense.ai.core.theme.Dimens
+import com.plantsense.ai.core.theme.TextMetrics
+
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -44,7 +47,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,7 +54,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.plantsense.ai.R
+import com.plantsense.ai.core.theme.spacing
+import com.plantsense.ai.presentation.model.CameraMode
+import com.plantsense.ai.presentation.util.UiText
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -61,19 +68,39 @@ import java.util.concurrent.Executors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun CameraRoute(
+    onNavigateToHistory: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToIdentify: (String) -> Unit,
+    onNavigateToDisease: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: CameraViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+) {
+    val hasApiKey by viewModel.hasApiKey.collectAsStateWithLifecycle()
+    CameraScreen(
+        hasApiKey = hasApiKey,
+        onNavigateToHistory = onNavigateToHistory,
+        onNavigateToProfile = onNavigateToProfile,
+        onNavigateToIdentify = onNavigateToIdentify,
+        onNavigateToDisease = onNavigateToDisease,
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun CameraScreen(
+    hasApiKey: Boolean,
     onNavigateToHistory: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToIdentify: (String) -> Unit,
     onNavigateToDisease: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val spacing = MaterialTheme.spacing
     val context = LocalContext.current
     val backPressedDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     
-    val viewModel: CameraViewModel = androidx.hilt.navigation.compose.hiltViewModel()
-    val hasApiKey by viewModel.hasApiKey.collectAsState()
-
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -103,21 +130,20 @@ fun CameraScreen(
                     )
                 },
                 navigationIcon = {
-                    Box(
+                    IconButton(
+                        onClick = { backPressedDispatcher?.onBackPressed() },
                         modifier = Modifier
-                            .padding(start = 12.dp)
-                            .size(40.dp)
+                            .padding(start = Dimens.Dp12)
+                            .size(Dimens.Dp48)
                             .clip(CircleShape)
                             .background(Color.Black.copy(alpha = 0.5f))
-                            .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
-                            .clickable { backPressedDispatcher?.onBackPressed() },
-                        contentAlignment = Alignment.Center
+                            .border(Dimens.Dp1, Color.White.copy(alpha = 0.1f), CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
                             contentDescription = stringResource(R.string.back_cd),
                             tint = Color.White,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(Dimens.Dp22)
                         )
                     }
                 },
@@ -138,10 +164,9 @@ fun CameraScreen(
                 CameraViewfinder(
                     hasApiKey = hasApiKey,
                     onPhotoCaptured = { file, mode ->
-                        if (mode == "IDENTIFY") {
-                            onNavigateToIdentify(file.absolutePath)
-                        } else {
-                            onNavigateToDisease(file.absolutePath)
+                        when (mode) {
+                            CameraMode.IDENTIFY -> onNavigateToIdentify(file.absolutePath)
+                            CameraMode.DIAGNOSE -> onNavigateToDisease(file.absolutePath)
                         }
                     }
                 )
@@ -150,7 +175,7 @@ fun CameraScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color.Black)
-                        .padding(24.dp),
+                        .padding(Dimens.Dp24),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -161,9 +186,9 @@ fun CameraScreen(
                             imageVector = Icons.Rounded.Warning,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(64.dp)
+                            modifier = Modifier.size(Dimens.Dp64)
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp16))
                         Text(
                             stringResource(R.string.camera_permission_required),
                             style = MaterialTheme.typography.titleLarge,
@@ -171,17 +196,17 @@ fun CameraScreen(
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp8))
                         Text(
                             stringResource(R.string.camera_permission_explanation),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.LightGray,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp24))
                         Button(
                             onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(Dimens.Dp16),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary
                             )
@@ -199,40 +224,39 @@ fun CameraScreen(
                 exit = fadeOut() + slideOutVertically(),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 8.dp)
-                    .padding(horizontal = 16.dp)
+                    .padding(top = Dimens.Dp8)
+                    .padding(horizontal = Dimens.Dp16)
             ) {
                 Card(
+                    onClick = onNavigateToProfile,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f)
                     ),
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToProfile() }
+                    shape = RoundedCornerShape(Dimens.Dp20),
+                    border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
+                            .padding(Dimens.Dp14),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(Dimens.Dp36)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Warning,
-                                contentDescription = stringResource(R.string.warning_cd),
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(Dimens.Dp20)
                             )
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(Dimens.Dp12))
                         Text(
                             text = stringResource(R.string.api_key_warning),
                             style = MaterialTheme.typography.bodyMedium,
@@ -250,7 +274,7 @@ fun CameraScreen(
 @Composable
 fun CameraViewfinder(
     hasApiKey: Boolean,
-    onPhotoCaptured: (File, String) -> Unit
+    onPhotoCaptured: (File, CameraMode) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -260,7 +284,7 @@ fun CameraViewfinder(
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
 
     var isCapturing by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<UiText?>(null) }
     
     // Dynamic lens configuration and flash control hooks
     var lensFacing by remember { mutableStateOf(CameraSelector.LENS_FACING_BACK) }
@@ -268,7 +292,7 @@ fun CameraViewfinder(
     var cameraControl by remember { mutableStateOf<androidx.camera.core.CameraControl?>(null) }
     
     // Switch dynamic mode tabs
-    var activeMode by remember { mutableStateOf("IDENTIFY") } // "IDENTIFY" or "DIAGNOSE"
+    var activeMode by remember { mutableStateOf(CameraMode.IDENTIFY) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -318,7 +342,7 @@ fun CameraViewfinder(
             if (destFile != null) {
                 onPhotoCaptured(destFile, activeMode)
             } else {
-                errorMessage = "Failed to copy picked image."
+                errorMessage = UiText.StringResource(R.string.copy_image_failed)
             }
         }
     }
@@ -369,10 +393,10 @@ fun CameraViewfinder(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 140.dp) // Offset above center to avoid shutter overlap
+                .padding(bottom = Dimens.Dp140) // Offset above center to avoid shutter overlap
         ) {
-            val frameSizePx = 250.dp.toPx()
-            val cornerRadiusPx = 32.dp.toPx()
+            val frameSizePx = Dimens.Dp250.toPx()
+            val cornerRadiusPx = Dimens.Dp32.toPx()
             
             val left = (size.width - frameSizePx) / 2
             val top = (size.height - frameSizePx) / 2
@@ -395,8 +419,8 @@ fun CameraViewfinder(
             }
             
             // Draw Animated Corner Guidelines
-            val strokeWidth = 3.dp.toPx()
-            val cornerLength = 24.dp.toPx()
+            val strokeWidth = Dimens.Dp3.toPx()
+            val cornerLength = Dimens.Dp24.toPx()
             val cornerColor = Color.White
             
             val scaleOffset = (frameSizePx * (cornerPulse - 1.0f)) / 2
@@ -461,9 +485,9 @@ fun CameraViewfinder(
                         Color.Transparent
                     )
                 ),
-                start = Offset(animLeft + 6.dp.toPx(), laserY),
-                end = Offset(animRight - 6.dp.toPx(), laserY),
-                strokeWidth = 2.dp.toPx()
+                start = Offset(animLeft + Dimens.Dp6.toPx(), laserY),
+                end = Offset(animRight - Dimens.Dp6.toPx(), laserY),
+                strokeWidth = Dimens.Dp2.toPx()
             )
         }
 
@@ -471,20 +495,20 @@ fun CameraViewfinder(
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .padding(top = 180.dp),
+                .padding(top = Dimens.Dp180),
             contentAlignment = Alignment.Center
         ) {
             Card(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(Dimens.Dp12),
                 colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.5f)),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                border = BorderStroke(Dimens.Dp1, Color.White.copy(alpha = 0.1f))
             ) {
                 Text(
-                    text = "Align the plant inside the frame.",
+                    text = stringResource(R.string.align_plant_frame),
                     color = Color.White,
-                    fontSize = 12.sp,
+                    fontSize = TextMetrics.Sp12,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                    modifier = Modifier.padding(horizontal = Dimens.Dp14, vertical = Dimens.Dp6)
                 )
             }
         }
@@ -494,21 +518,21 @@ fun CameraViewfinder(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
+                    .padding(Dimens.Dp16)
                     .statusBarsPadding()
-                    .padding(top = 64.dp),
+                    .padding(top = Dimens.Dp64),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Snackbar(
                     action = {
                         TextButton(onClick = { errorMessage = null }) {
-                            Text("Dismiss", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.dismiss), color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(Dimens.Dp16),
                     containerColor = MaterialTheme.colorScheme.error
                 ) {
-                    Text(msg)
+                    Text(msg.asString())
                 }
             }
         }
@@ -518,83 +542,80 @@ fun CameraViewfinder(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
+                .padding(horizontal = Dimens.Dp24)
+                .padding(bottom = Dimens.Dp32),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Mode Select Tabs (IDENTIFY vs DIAGNOSE)
             Row(
                 modifier = Modifier
-                    .padding(bottom = 20.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .padding(bottom = Dimens.Dp20)
+                    .clip(RoundedCornerShape(Dimens.Dp20))
                     .background(Color.Black.copy(alpha = 0.4f))
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    .border(Dimens.Dp1, Color.White.copy(alpha = 0.08f), RoundedCornerShape(Dimens.Dp20))
+                    .padding(Dimens.Dp4),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.Dp4),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ModeTab(
-                    label = "IDENTIFY",
-                    isSelected = activeMode == "IDENTIFY",
-                    onClick = { activeMode = "IDENTIFY" }
-                )
-                ModeTab(
-                    label = "DIAGNOSE",
-                    isSelected = activeMode == "DIAGNOSE",
-                    onClick = { activeMode = "DIAGNOSE" }
-                )
+                CameraMode.entries.forEach { mode ->
+                    ModeTab(
+                        label = stringResource(mode.labelRes).uppercase(Locale.getDefault()),
+                        isSelected = activeMode == mode,
+                        onClick = { activeMode = mode }
+                    )
+                }
             }
 
             // Glassmorphic Floating Controller Box
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(36.dp))
+                    .clip(RoundedCornerShape(Dimens.Dp36))
                     .background(Color.Black.copy(alpha = 0.55f))
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(36.dp))
-                    .padding(vertical = 12.dp, horizontal = 20.dp)
+                    .border(BorderStroke(Dimens.Dp1, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(Dimens.Dp36))
+                    .padding(vertical = Dimens.Dp12, horizontal = Dimens.Dp20)
             ) {
                 // Left Controls: Gallery & Flash
                 Row(
                     modifier = Modifier.align(Alignment.CenterStart),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.Dp12),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Gallery Upload Shortcut
-                    Box(
+                    IconButton(
+                        onClick = {
+                            galleryLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(Dimens.Dp48)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.08f))
-                            .clickable {
-                                galleryLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            },
-                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.PhotoLibrary,
-                            contentDescription = "Upload from Gallery",
+                            contentDescription = stringResource(R.string.upload_gallery_cd),
                             tint = Color.White,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(Dimens.Dp20)
                         )
                     }
 
                     // Flash / Torch control
-                    Box(
+                    IconButton(
+                        onClick = { isFlashOn = !isFlashOn },
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(Dimens.Dp48)
                             .clip(CircleShape)
                             .background(if (isFlashOn) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f))
-                            .clickable { isFlashOn = !isFlashOn },
-                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (isFlashOn) Icons.Rounded.FlashOn else Icons.Rounded.FlashOff,
-                            contentDescription = "Toggle Flash",
+                            contentDescription = stringResource(
+                                if (isFlashOn) R.string.turn_flash_off_cd else R.string.turn_flash_on_cd
+                            ),
                             tint = if (isFlashOn) MaterialTheme.colorScheme.primary else Color.White,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(Dimens.Dp20)
                         )
                     }
                 }
@@ -609,7 +630,7 @@ fun CameraViewfinder(
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .size(72.dp)
+                        .size(Dimens.Dp72)
                         .clip(CircleShape)
                         .clickable(enabled = hasApiKey && !isCapturing) {
                             isCapturing = true
@@ -624,7 +645,7 @@ fun CameraViewfinder(
                                 },
                                 onCaptureError = {
                                     isCapturing = false
-                                    errorMessage = "Capture failed, try again."
+                                    errorMessage = UiText.StringResource(R.string.capture_failed)
                                 }
                             )
                         },
@@ -633,39 +654,16 @@ fun CameraViewfinder(
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawCircle(
                             color = Color.White,
-                            radius = (size.minDimension / 2) - 2.dp.toPx(),
-                            style = Stroke(width = 4.dp.toPx())
+                            radius = (size.minDimension / 2) - Dimens.Dp2.toPx(),
+                            style = Stroke(width = Dimens.Dp4.toPx())
                         )
                         drawCircle(
                             color = if (hasApiKey) Color.White else Color.White.copy(alpha = 0.4f),
-                            radius = ((size.minDimension / 2) - 9.dp.toPx()) * shutterScale
+                            radius = ((size.minDimension / 2) - Dimens.Dp9.toPx()) * shutterScale
                         )
                     }
                 }
 
-             /*   // Right Control: Front/Back Camera Lens Switch
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .clickable {
-                            lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) {
-                                CameraSelector.LENS_FACING_FRONT
-                            } else {
-                                CameraSelector.LENS_FACING_BACK
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Cameraswitch,
-                        contentDescription = "Switch Camera Selector",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }*/
             }
         }
     }
@@ -679,17 +677,19 @@ private fun ModeTab(
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
+            .sizeIn(minWidth = Dimens.Dp48, minHeight = Dimens.Dp48)
+            .clip(RoundedCornerShape(Dimens.Dp16))
             .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
             .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .padding(horizontal = Dimens.Dp14, vertical = Dimens.Dp6),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = TextMetrics.Sp11,
             fontWeight = FontWeight.Bold,
             color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
-            letterSpacing = 0.5.sp
+            letterSpacing = TextMetrics.TrackingHalf
         )
     }
 }

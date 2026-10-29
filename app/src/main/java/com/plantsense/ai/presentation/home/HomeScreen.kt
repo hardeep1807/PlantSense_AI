@@ -1,5 +1,8 @@
 package com.plantsense.ai.presentation.home
 
+import com.plantsense.ai.core.theme.Dimens
+import com.plantsense.ai.core.theme.TextMetrics
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -36,16 +39,18 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.plantsense.ai.R
-import com.plantsense.ai.domain.model.ScanHistoryItem
 import com.plantsense.ai.domain.model.ScanType
+import androidx.compose.ui.platform.LocalContext
+import com.plantsense.ai.core.theme.spacing
+import com.plantsense.ai.presentation.model.ScanCardUiModel
 import java.io.File
-import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.res.pluralStringResource
+import com.plantsense.ai.presentation.util.localizedDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(
+fun HomeRoute(
     onNavigateToCamera: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToProfile: () -> Unit,
@@ -57,19 +62,58 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isCopying by viewModel.isCopying.collectAsStateWithLifecycle()
-    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
-    
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var showAnalysisDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let { msg ->
-            showAnalysisDialog = false
-            snackbarHostState.showSnackbar(msg)
-            viewModel.clearError()
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is HomeEffect.NavigateToIdentify -> {
+                    onNavigateToIdentify(effect.imagePath, -1)
+                }
+                is HomeEffect.NavigateToDisease -> {
+                    onNavigateToDisease(effect.imagePath, -1)
+                }
+                is HomeEffect.ShowError -> {
+                    snackbarHostState.showSnackbar(effect.message.asString(context))
+                }
+            }
         }
     }
+
+    HomeScreen(
+        uiState = uiState,
+        isCopying = isCopying,
+        onEvent = viewModel::onEvent,
+        onNavigateToCamera = onNavigateToCamera,
+        onNavigateToHistory = onNavigateToHistory,
+        onNavigateToProfile = onNavigateToProfile,
+        onNavigateToIdentify = onNavigateToIdentify,
+        onNavigateToDisease = onNavigateToDisease,
+        bottomBar = bottomBar,
+        snackbarHostState = snackbarHostState,
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreen(
+    uiState: HomeUiState,
+    isCopying: Boolean,
+    onEvent: (HomeEvent) -> Unit,
+    onNavigateToCamera: () -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToIdentify: (String, Int) -> Unit,
+    onNavigateToDisease: (String, Int) -> Unit,
+    bottomBar: @Composable () -> Unit,
+    snackbarHostState: SnackbarHostState,
+    modifier: Modifier = Modifier
+) {
+    val spacing = MaterialTheme.spacing
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showAnalysisDialog by remember { mutableStateOf(false) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -95,68 +139,67 @@ fun HomeScreen(
                 .fillMaxSize()
                 .verticalScroll(scrollState)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(spacing.lg))
             
             // Greeting & Title Section
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = spacing.xl),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
                         text = getGreeting().uppercase(Locale.getDefault()),
-                        fontSize = 11.sp,
+                        fontSize = TextMetrics.Sp11,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
+                        letterSpacing = TextMetrics.TrackingOneAndHalf
                     )
                     Text(
                         text = stringResource(R.string.app_name),
-                        fontSize = 30.sp,
+                        fontSize = TextMetrics.Sp30,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "AI Botanical Intelligence & Vigor Diagnostics",
-                        fontSize = 12.sp,
+                        text = stringResource(R.string.home_tagline),
+                        fontSize = TextMetrics.Sp12,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(top = 1.dp)
+                        modifier = Modifier.padding(top = Dimens.Dp1)
                     )
                 }
                 
                 // Profile Avatar Icon
-                Box(
+                IconButton(
+                    onClick = onNavigateToProfile,
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(Dimens.Dp48)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer)
-                        .clickable { onNavigateToProfile() },
-                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Spa,
-                        contentDescription = "Profile Settings",
+                        contentDescription = stringResource(R.string.open_profile_settings_cd),
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(Dimens.Dp24)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(spacing.xl))
 
             // Premium Hero Gradient Card
             Surface(
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(spacing.cardRadiusLg),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .height(200.dp),
-                shadowElevation = 8.dp,
-                tonalElevation = 2.dp
+                    .padding(horizontal = spacing.xl)
+                    .height(Dimens.Dp200),
+                shadowElevation = Dimens.Dp8,
+                tonalElevation = Dimens.Dp2
             ) {
                 Box(
                     modifier = Modifier
@@ -174,7 +217,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = 20.dp, start = 160.dp)
+                            .padding(top = Dimens.Dp20, start = Dimens.Dp160)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.05f))
                     )
@@ -182,35 +225,35 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(24.dp),
+                            .padding(Dimens.Dp24),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(Dimens.Dp8))
                                     .background(Color.White.copy(alpha = 0.15f))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .padding(horizontal = Dimens.Dp8, vertical = Dimens.Dp4)
                             ) {
                                 Text(
-                                    text = "BOTANICAL SCANNER",
-                                    fontSize = 9.sp,
+                                    text = stringResource(R.string.botanical_scanner).uppercase(Locale.getDefault()),
+                                    fontSize = TextMetrics.Sp9,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
-                                    letterSpacing = 1.sp
+                                    letterSpacing = TextMetrics.Tracking1
                                 )
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimens.Dp8))
                             Text(
-                                text = "Analyze Plant Vigor",
+                                text = stringResource(R.string.analyze_plant_vigor),
                                 color = Color.White,
-                                fontSize = 22.sp,
+                                fontSize = TextMetrics.Sp22,
                                 fontWeight = FontWeight.ExtraBold
                             )
                             Text(
-                                text = "Take a picture of leaves to compile reports",
+                                text = stringResource(R.string.hero_scan_description),
                                 color = Color.White.copy(alpha = 0.8f),
-                                fontSize = 12.sp,
+                                fontSize = TextMetrics.Sp12,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -219,17 +262,17 @@ fun HomeScreen(
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.Dp10)
                         ) {
                             // Large Scan Plant Button
                             Button(
                                 onClick = onNavigateToCamera,
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                                shape = RoundedCornerShape(16.dp),
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+                                shape = RoundedCornerShape(Dimens.Dp16),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = Dimens.Dp2),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(46.dp)
+                                    .height(Dimens.Dp46)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -239,36 +282,35 @@ fun HomeScreen(
                                         imageVector = Icons.Rounded.Camera,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(Dimens.Dp18)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(Dimens.Dp8))
                                     Text(
-                                        text = "Scan Plant",
+                                        text = stringResource(R.string.scan_plant),
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary,
-                                        fontSize = 14.sp
+                                        fontSize = TextMetrics.Sp14
                                     )
                                 }
                             }
 
                             // Gallery icon button trigger
-                            Box(
+                            IconButton(
+                                onClick = {
+                                    imagePickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
                                 modifier = Modifier
-                                    .size(46.dp)
-                                    .clip(RoundedCornerShape(16.dp))
+                                    .size(Dimens.Dp48)
+                                    .clip(RoundedCornerShape(Dimens.Dp16))
                                     .background(Color.White.copy(alpha = 0.2f))
-                                    .clickable {
-                                        imagePickerLauncher.launch(
-                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                        )
-                                    },
-                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.PhotoLibrary,
-                                    contentDescription = "Upload from gallery",
+                                    contentDescription = stringResource(R.string.upload_gallery_cd),
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(Dimens.Dp20)
                                 )
                             }
                         }
@@ -276,7 +318,7 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp20))
 
             // Resolve real-time statistics
             val totalScansVal: String
@@ -286,18 +328,18 @@ fun HomeScreen(
             when (val state = uiState) {
                 is HomeUiState.Success -> {
                     totalScansVal = state.totalScans.toString()
-                    vigorScoreVal = "${state.vigorScore}%"
-                    vigorRankVal = state.vigorRank
+                    vigorScoreVal = stringResource(R.string.percent_value, state.vigorScore)
+                    vigorRankVal = stringResource(state.vigorRank.labelRes)
                 }
                 is HomeUiState.Empty -> {
-                    totalScansVal = "0"
-                    vigorScoreVal = "0%"
-                    vigorRankVal = "Novice"
+                    totalScansVal = 0.toString()
+                    vigorScoreVal = stringResource(R.string.percent_value, 0)
+                    vigorRankVal = stringResource(R.string.rank_novice)
                 }
                 is HomeUiState.Loading -> {
-                    totalScansVal = "..."
-                    vigorScoreVal = "..."
-                    vigorRankVal = "..."
+                    totalScansVal = stringResource(R.string.loading_placeholder)
+                    vigorScoreVal = stringResource(R.string.loading_placeholder)
+                    vigorRankVal = stringResource(R.string.loading_placeholder)
                 }
             }
 
@@ -305,25 +347,25 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = Dimens.Dp20),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.Dp10)
             ) {
                 StatCard(
-                    title = "VIGOR SCORE",
+                    title = stringResource(R.string.vigor_score_label).uppercase(Locale.getDefault()),
                     value = vigorScoreVal,
                     icon = Icons.Rounded.Spa,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
-                    title = "TOTAL SCANS",
+                    title = stringResource(R.string.total_scans_label).uppercase(Locale.getDefault()),
                     value = totalScansVal,
                     icon = Icons.Rounded.History,
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
-                    title = "AI VIGOR RANK",
+                    title = stringResource(R.string.ai_vigor_rank_label).uppercase(Locale.getDefault()),
                     value = vigorRankVal,
                     icon = Icons.Rounded.Spa,
                     color = MaterialTheme.colorScheme.tertiary,
@@ -331,95 +373,27 @@ fun HomeScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-           /* // Quick Actions Section
-            Text(
-                text = "Quick Actions",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 2x2 Quick Actions Grid
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    QuickActionCard(
-                        title = "Identify Plant",
-                        subtitle = "Find species metrics",
-                        icon = Icons.Rounded.Eco,
-                        tintColor = MaterialTheme.colorScheme.primary,
-                        onClick = onNavigateToCamera,
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickActionCard(
-                        title = "Diagnose Leaf",
-                        subtitle = "Detect health issues",
-                        icon = Icons.Rounded.Warning,
-                        tintColor = MaterialTheme.colorScheme.tertiary,
-                        onClick = onNavigateToCamera,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    QuickActionCard(
-                        title = "Upload Image",
-                        subtitle = "Select from gallery",
-                        icon = Icons.Rounded.CloudUpload,
-                        tintColor = MaterialTheme.colorScheme.secondary,
-                        onClick = {
-                            imagePickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickActionCard(
-                        title = "View Archives",
-                        subtitle = "Browse diagnostics",
-                        icon = Icons.Rounded.History,
-                        tintColor = MaterialTheme.colorScheme.outline,
-                        onClick = onNavigateToHistory,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }*/
-
-
+            Spacer(modifier = Modifier.height(Dimens.Dp20))
 
             // Today's Tip Card Section
             Card(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(Dimens.Dp24),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
                 ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 20.dp) // Offset for the floating bottom navigation bar
+                    .padding(horizontal = Dimens.Dp20)
+                    .padding(bottom = Dimens.Dp20) // Offset for the floating bottom navigation bar
             ) {
                 Row(
-                    modifier = Modifier.padding(20.dp),
+                    modifier = Modifier.padding(Dimens.Dp20),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(Dimens.Dp40)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
@@ -428,23 +402,23 @@ fun HomeScreen(
                             imageVector = Icons.Rounded.Spa,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(Dimens.Dp22)
                         )
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(Dimens.Dp16))
                     Column {
                         Text(
-                            text = "Today's Care Advice",
-                            fontSize = 13.sp,
+                            text = stringResource(R.string.todays_care_advice),
+                            fontSize = TextMetrics.Sp13,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp2))
                         Text(
-                            text = "Houseplants adapt to their environment. Do not rotate them too frequently as they waste cell energy re-adjusting leaves to light source directions.",
-                            fontSize = 12.sp,
+                            text = stringResource(R.string.todays_care_advice_body),
+                            fontSize = TextMetrics.Sp12,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                            lineHeight = 16.sp
+                            lineHeight = TextMetrics.Sp16
                         )
                     }
                 }
@@ -455,26 +429,27 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = Dimens.Dp20),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = stringResource(R.string.recent_scans_label),
-                    fontSize = 18.sp,
+                    fontSize = TextMetrics.Sp18,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                Text(
-                    text = "See All",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable { onNavigateToHistory() }
-                )
+                TextButton(onClick = onNavigateToHistory) {
+                    Text(
+                        text = stringResource(R.string.see_all),
+                        fontSize = TextMetrics.Sp13,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp10))
 
             // Horizontal Recent Scans List
             when (val state = uiState) {
@@ -482,7 +457,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(180.dp),
+                            .height(Dimens.Dp180),
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -492,9 +467,9 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp)
-                            .height(140.dp)
-                            .clip(RoundedCornerShape(24.dp))
+                            .padding(horizontal = Dimens.Dp20)
+                            .height(Dimens.Dp140)
+                            .clip(RoundedCornerShape(Dimens.Dp24))
                             .background(MaterialTheme.colorScheme.surface),
                         contentAlignment = Alignment.Center
                     ) {
@@ -503,13 +478,13 @@ fun HomeScreen(
                                 imageVector = Icons.Rounded.Spa,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
-                                modifier = Modifier.size(48.dp)
+                                modifier = Modifier.size(Dimens.Dp48)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Dimens.Dp8))
                             Text(
                                 text = stringResource(R.string.no_scans_found),
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-                                fontSize = 13.sp,
+                                fontSize = TextMetrics.Sp13,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -517,8 +492,8 @@ fun HomeScreen(
                 }
                 is HomeUiState.Success -> {
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.Dp14),
+                        contentPadding = PaddingValues(horizontal = Dimens.Dp20),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         items(state.scans, key = { it.id }) { item ->
@@ -526,9 +501,9 @@ fun HomeScreen(
                                 item = item,
                                 onClick = {
                                     if (item.type == ScanType.IDENTIFICATION) {
-                                        onNavigateToIdentify(item.imageUrl, item.id)
+                                        onNavigateToIdentify(item.imagePath, item.id)
                                     } else {
-                                        onNavigateToDisease(item.imageUrl, item.id)
+                                        onNavigateToDisease(item.imagePath, item.id)
                                     }
                                 }
                             )
@@ -537,7 +512,7 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp20))
 
         }
     }
@@ -546,21 +521,21 @@ fun HomeScreen(
     if (showAnalysisDialog) {
         Dialog(onDismissRequest = { if (!isCopying) showAnalysisDialog = false }) {
             Card(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(Dimens.Dp24),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    .padding(Dimens.Dp16),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp8)
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier.padding(Dimens.Dp24),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(Dimens.Dp56)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
@@ -569,10 +544,10 @@ fun HomeScreen(
                             imageVector = Icons.Rounded.Spa,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(Dimens.Dp28)
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimens.Dp16))
                     Text(
                         text = stringResource(R.string.select_analysis_type),
                         style = MaterialTheme.typography.titleLarge,
@@ -580,61 +555,57 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimens.Dp8))
                     Text(
                         text = stringResource(R.string.choose_how_to_analyze),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(Dimens.Dp24))
 
                     if (isCopying) {
                         CircularProgressIndicator(
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            modifier = Modifier.padding(vertical = Dimens.Dp8)
                         )
                     } else {
                         // Identify option
                         Button(
                             onClick = {
                                 selectedImageUri?.let { uri ->
-                                    viewModel.processPickedImage(uri) { path ->
-                                        showAnalysisDialog = false
-                                        onNavigateToIdentify(path, -1)
-                                    }
+                                    onEvent(HomeEvent.ImagePicked(uri.toString()))
+                                    showAnalysisDialog = false
                                 }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(16.dp)
+                                .height(Dimens.Dp48),
+                            shape = RoundedCornerShape(Dimens.Dp16)
                         ) {
-                            Text(stringResource(R.string.identify_plant), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(stringResource(R.string.identify_plant), fontWeight = FontWeight.Bold, fontSize = TextMetrics.Sp15)
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp8))
 
                         // Diagnose Option
                         Button(
                             onClick = {
                                 selectedImageUri?.let { uri ->
-                                    viewModel.processPickedImage(uri) { path ->
-                                        showAnalysisDialog = false
-                                        onNavigateToDisease(path, -1)
-                                    }
+                                    onEvent(HomeEvent.DiseaseImagePicked(uri.toString()))
+                                    showAnalysisDialog = false
                                 }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(16.dp),
+                                .height(Dimens.Dp48),
+                            shape = RoundedCornerShape(Dimens.Dp16),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.secondary
                             )
                         ) {
-                            Text(stringResource(R.string.diagnose_disease), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(stringResource(R.string.diagnose_disease), fontWeight = FontWeight.Bold, fontSize = TextMetrics.Sp15)
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(Dimens.Dp12))
 
                         // Cancel
                         TextButton(onClick = { showAnalysisDialog = false }) {
@@ -660,19 +631,19 @@ private fun StatCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(Dimens.Dp20),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp2),
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(Dimens.Dp14),
             verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(30.dp)
+                    .size(Dimens.Dp30)
                     .clip(CircleShape)
                     .background(color.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
@@ -681,105 +652,47 @@ private fun StatCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = color,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(Dimens.Dp16)
                 )
             }
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp10))
             Text(
                 text = value,
-                fontSize = 18.sp,
+                fontSize = TextMetrics.Sp18,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(1.dp))
+            Spacer(modifier = Modifier.height(Dimens.Dp1))
             Text(
                 text = title,
-                fontSize = 9.sp,
+                fontSize = TextMetrics.Sp9,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                letterSpacing = 0.5.sp
+                letterSpacing = TextMetrics.TrackingHalf
             )
-        }
-    }
-}
-
-@Composable
-private fun QuickActionCard(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    tintColor: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = modifier.clickable { onClick() }
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(tintColor.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = tintColor,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = title,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    lineHeight = 12.sp
-                )
-            }
         }
     }
 }
 
 @Composable
 private fun HorizontalRecentScanItem(
-    item: ScanHistoryItem,
+    item: ScanCardUiModel,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dateText = remember(item.timestamp) {
-        val sdf = SimpleDateFormat("MMM d", Locale.getDefault())
-        sdf.format(Date(item.timestamp))
-    }
-
     Card(
-        shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        onClick = onClick,
+        shape = RoundedCornerShape(Dimens.Dp24),
+        border = BorderStroke(Dimens.Dp1, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.Dp3),
         modifier = modifier
-            .width(150.dp)
-            .height(180.dp)
-            .clickable { onClick() }
+            .width(Dimens.Dp150)
+            .height(Dimens.Dp180)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Full crop background image
             AsyncImage(
-                model = File(item.imageUrl),
+                model = File(item.imagePath),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -801,49 +714,46 @@ private fun HorizontalRecentScanItem(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(14.dp),
+                    .padding(Dimens.Dp14),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 // Top tag chip
                 val tagColor = if (item.type == ScanType.IDENTIFICATION) Color(0xFF4CAF50) else Color(0xFFFFB300)
-                val label = if (item.type == ScanType.IDENTIFICATION) "Species" else "Pathology"
+                val label = stringResource(
+                    if (item.type == ScanType.IDENTIFICATION) R.string.species_label
+                    else R.string.pathology_label
+                )
                 
                 Box(
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(Dimens.Dp6))
+                        .padding(horizontal = Dimens.Dp6, vertical = Dimens.Dp2)
                 ) {
                     Text(
                         text = label.uppercase(Locale.getDefault()),
                         color = tagColor,
-                        fontSize = 8.sp,
+                        fontSize = TextMetrics.Sp8,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = TextMetrics.TrackingHalf
                     )
                 }
 
                 // Bottom title block
                 Column {
-                    val displayName = if (item.type == ScanType.IDENTIFICATION) {
-                        item.plantName ?: stringResource(R.string.unknown_plant)
-                    } else {
-                        item.diseaseName ?: stringResource(R.string.healthy)
-                    }
-
                     Text(
-                        text = displayName,
+                        text = item.title.asString(),
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = TextMetrics.Sp14,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1
                     )
                     
                     Text(
-                        text = dateText,
+                        text = localizedDateTime(item.timestamp, dateStyle = java.text.DateFormat.SHORT, timeStyle = null),
                         color = Color.White.copy(alpha = 0.6f),
-                        fontSize = 11.sp,
+                        fontSize = TextMetrics.Sp11,
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(top = 1.dp)
+                        modifier = Modifier.padding(top = Dimens.Dp1)
                     )
                 }
             }
